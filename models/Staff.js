@@ -1,5 +1,40 @@
 import mongoose from 'mongoose';
 
+/**
+ * STAFF MODEL - DUPLICATE NAME HANDLING
+ * 
+ * This model correctly handles multiple staff members with the same name.
+ * 
+ * SCENARIO 1: Two teachers named "Rajesh Kumar"
+ *   Teacher 1: Rajesh Kumar - EMP20240001, rajesh1@school.com, Teaching Department
+ *   Teacher 2: Rajesh Kumar - EMP20240002, rajesh2@school.com, Teaching Department
+ *   Result: ✅ Both stored successfully
+ * 
+ * SCENARIO 2: Same designation
+ *   Staff 1: Amit Shah - Senior Teacher, amit@school.com
+ *   Staff 2: Priya Patel - Senior Teacher, priya@school.com
+ *   Staff 3: Rahul Singh - Senior Teacher, rahul@school.com
+ *   Result: ✅ All stored successfully with same designation
+ * 
+ * SCENARIO 3: Spouse teachers with same address
+ *   Teacher A: Mr. Sharma (mrsharm@school.com), Address: 123 Main St
+ *   Teacher B: Mrs. Sharma (mrssharm@school.com), Address: 123 Main St
+ *   Result: ✅ Both stored successfully with same address
+ * 
+ * UNIQUE CONSTRAINTS:
+ * - employeeId (indexed, globally unique, auto-generated)
+ * - user email (unique via User model)
+ * 
+ * NON-UNIQUE (Allowed duplicates):
+ * - firstName, lastName (staff names)
+ * - Department, Designation
+ * - Phone numbers
+ * - Personal emails
+ * - Addresses
+ * - Qualifications
+ * - All other fields
+ */
+
 const staffSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
@@ -83,6 +118,18 @@ const staffSchema = new mongoose.Schema({
     url: String,
     uploadedAt: Date
   }],
+  alternateContact: {
+    name: String,
+    relation: String,
+    phone: String,
+    email: String
+  },
+  emergencyContact: {
+    name: String,
+    relation: String,
+    phone: String,
+    address: String
+  },
   status: {
     type: String,
     enum: ['active', 'inactive', 'on_leave', 'resigned', 'retired'],

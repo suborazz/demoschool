@@ -1,4 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/router';
+import { useAuth } from '../../context/AuthContext';
+import axios from 'axios';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import DashboardLayout from '../../components/DashboardLayout';
 import { 
@@ -6,47 +10,72 @@ import {
   FaChartLine, FaUserPlus, FaFileInvoice, FaClipboardCheck, 
   FaCalendarAlt, FaBell, FaTrophy, FaArrowUp, FaArrowDown,
   FaClock, FaCheckCircle, FaExclamationTriangle, FaStar,
-  FaDownload, FaPrint, FaSearch, FaFilter, FaSchool
+  FaDownload, FaPrint, FaSearch, FaFilter, FaSchool, FaSpinner
 } from 'react-icons/fa';
 
 export default function AdminDashboard() {
+  const router = useRouter();
+  const { token } = useAuth();
   const [timeRange, setTimeRange] = useState('month');
+  const [loading, setLoading] = useState(true);
+  const [dashboardData, setDashboardData] = useState(null);
+
+  const fetchDashboardData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get('/api/admin/dashboard', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setDashboardData(response.data.data);
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
+
+  // Fetch dashboard data
+  useEffect(() => {
+    if (token) {
+      fetchDashboardData();
+    }
+  }, [token, fetchDashboardData]);
+
+  // Format currency
+  const formatCurrency = (amount) => {
+    if (amount >= 10000000) return `₹${(amount / 10000000).toFixed(1)}Cr`;
+    if (amount >= 100000) return `₹${(amount / 100000).toFixed(1)}L`;
+    if (amount >= 1000) return `₹${(amount / 1000).toFixed(1)}K`;
+    return `₹${amount}`;
+  };
 
   const stats = [
     { 
       title: 'Total Students', 
-      value: '1,234', 
+      value: dashboardData?.stats.totalStudents || 0, 
       icon: FaUserGraduate, 
       gradient: 'from-blue-500 via-blue-600 to-cyan-500', 
-      change: '+12%',
-      trend: 'up',
       bgPattern: 'from-blue-50 to-cyan-50'
     },
     { 
       title: 'Total Staff', 
-      value: '87', 
+      value: dashboardData?.stats.totalStaff || 0, 
       icon: FaChalkboardTeacher, 
       gradient: 'from-green-500 via-green-600 to-emerald-500', 
-      change: '+5%',
-      trend: 'up',
       bgPattern: 'from-green-50 to-emerald-50'
     },
     { 
       title: 'Total Parents', 
-      value: '856', 
+      value: dashboardData?.stats.totalParents || 0, 
       icon: FaUsers, 
       gradient: 'from-purple-500 via-purple-600 to-pink-500', 
-      change: '+8%',
-      trend: 'up',
       bgPattern: 'from-purple-50 to-pink-50'
     },
     { 
       title: 'Revenue This Month', 
-      value: '₹45.2L', 
+      value: dashboardData ? formatCurrency(dashboardData.stats.monthlyRevenue) : '₹0', 
       icon: FaMoneyBillWave, 
       gradient: 'from-yellow-500 via-orange-500 to-red-500', 
-      change: '+15%',
-      trend: 'up',
       bgPattern: 'from-yellow-50 to-orange-50'
     },
   ];
@@ -62,20 +91,24 @@ export default function AdminDashboard() {
     { name: 'Notifications', icon: FaBell, gradient: 'from-yellow-500 to-orange-500', action: '/admin/notifications' },
   ];
 
-  const recentActivities = [
-    { action: 'New student admitted', time: '2 hours ago', icon: '👤', type: 'success', user: 'John Doe' },
-    { action: 'Fee payment received', time: '3 hours ago', icon: '💰', type: 'success', user: 'Parent (Class 10)' },
-    { action: 'Staff attendance marked', time: '5 hours ago', icon: '✅', type: 'info', user: 'Mrs. Smith' },
-    { action: 'Report generated', time: '1 day ago', icon: '📊', type: 'info', user: 'System' },
-    { action: 'New inquiry received', time: '2 days ago', icon: '📧', type: 'warning', user: 'Admission Dept' },
-  ];
+  // Hide demo data - these should come from database
+  const recentActivities = [];
+  const pendingTasks = [];
 
-  const pendingTasks = [
-    { task: 'Review 5 pending admissions', priority: 'high', count: 5 },
-    { task: 'Approve 3 leave requests', priority: 'medium', count: 3 },
-    { task: 'Generate monthly reports', priority: 'low', count: 1 },
-    { task: 'Update fee structure', priority: 'medium', count: 1 },
-  ];
+  if (loading) {
+    return (
+      <ProtectedRoute allowedRoles={['admin']}>
+        <DashboardLayout>
+          <div className="flex items-center justify-center min-h-screen">
+            <div className="text-center">
+              <FaSpinner className="text-6xl text-purple-600 animate-spin mx-auto mb-4" />
+              <p className="text-xl font-bold text-gray-600">Loading dashboard...</p>
+            </div>
+          </div>
+        </DashboardLayout>
+      </ProtectedRoute>
+    );
+  }
 
   return (
     <ProtectedRoute allowedRoles={['admin']}>
@@ -135,10 +168,6 @@ export default function AdminDashboard() {
                     <div className={`w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-gradient-to-br ${stat.gradient} rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:rotate-12 transition-all duration-500 flex-shrink-0`}>
                       <stat.icon className="text-white text-2xl sm:text-2xl md:text-3xl" />
                     </div>
-                    <div className={`flex items-center px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm ${stat.trend === 'up' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                      {stat.trend === 'up' ? <FaArrowUp className="mr-1 text-xs" /> : <FaArrowDown className="mr-1 text-xs" />}
-                      <span className="font-black">{stat.change}</span>
-                    </div>
                   </div>
 
                   {/* Content */}
@@ -168,7 +197,8 @@ export default function AdminDashboard() {
                   {quickActions.map((action, index) => (
                     <button
                       key={index}
-                      className="group relative p-4 sm:p-5 md:p-6 rounded-xl sm:rounded-2xl bg-gradient-to-br from-gray-50 to-white border-2 border-gray-100 hover:border-transparent hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 overflow-hidden"
+                      onClick={() => router.push(action.action)}
+                      className="group relative p-4 sm:p-5 md:p-6 rounded-xl sm:rounded-2xl bg-gradient-to-br from-gray-50 to-white border-2 border-gray-100 hover:border-transparent hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 overflow-hidden cursor-pointer"
                     >
                       {/* Gradient overlay on hover */}
                       <div className={`absolute inset-0 bg-gradient-to-br ${action.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-300`}></div>
@@ -225,9 +255,9 @@ export default function AdminDashboard() {
                 {/* Mini Stats */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mt-4 sm:mt-6">
                   {[
-                    { label: 'Attendance Rate', value: '94.5%', color: 'text-green-600' },
-                    { label: 'Fee Collection', value: '89%', color: 'text-blue-600' },
-                    { label: 'Pass Rate', value: '100%', color: 'text-purple-600' }
+                    { label: 'Attendance Rate', value: dashboardData?.metrics.attendanceRate || '0%', color: 'text-green-600' },
+                    { label: 'Fee Collection', value: dashboardData?.metrics.feeCollectionRate || '0%', color: 'text-blue-600' },
+                    { label: 'Pass Rate', value: dashboardData?.metrics.passRate || '0%', color: 'text-purple-600' }
                   ].map((mini, i) => (
                     <div key={i} className="text-center p-3 sm:p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-all">
                       <p className={`text-2xl sm:text-3xl font-black ${mini.color} mb-1`}>{mini.value}</p>
@@ -237,43 +267,46 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Recent Activity - Enhanced */}
-              <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl p-6 sm:p-8 hover:shadow-purple-500/20 transition-all duration-500">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8 gap-2">
-                  <h2 className="text-2xl sm:text-3xl font-black text-gray-900">Recent Activity</h2>
-                  <button className="text-purple-600 font-bold hover:text-purple-700 transition-colors text-sm sm:text-base self-start sm:self-auto">
-                    View All →
-                  </button>
-                </div>
-                <div className="space-y-2 sm:space-y-3">
-                  {recentActivities.map((item, index) => (
-                    <div
-                      key={index}
-                      className="group flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 sm:p-5 bg-gradient-to-br from-gray-50 to-white rounded-xl sm:rounded-2xl hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border-l-4 border-transparent hover:border-purple-500 gap-2 sm:gap-0"
-                    >
-                      <div className="flex items-center flex-1 min-w-0">
-                        <div className="text-3xl sm:text-4xl mr-3 sm:mr-4 transform group-hover:scale-125 transition-transform flex-shrink-0">
-                          {item.icon}
+              {/* Recent Activity - Hidden until we have real data */}
+              {recentActivities.length > 0 && (
+                <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl p-6 sm:p-8 hover:shadow-purple-500/20 transition-all duration-500">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8 gap-2">
+                    <h2 className="text-2xl sm:text-3xl font-black text-gray-900">Recent Activity</h2>
+                    <button className="text-purple-600 font-bold hover:text-purple-700 transition-colors text-sm sm:text-base self-start sm:self-auto">
+                      View All →
+                    </button>
+                  </div>
+                  <div className="space-y-2 sm:space-y-3">
+                    {recentActivities.map((item, index) => (
+                      <div
+                        key={index}
+                        className="group flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 sm:p-5 bg-gradient-to-br from-gray-50 to-white rounded-xl sm:rounded-2xl hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border-l-4 border-transparent hover:border-purple-500 gap-2 sm:gap-0"
+                      >
+                        <div className="flex items-center flex-1 min-w-0">
+                          <div className="text-3xl sm:text-4xl mr-3 sm:mr-4 transform group-hover:scale-125 transition-transform flex-shrink-0">
+                            {item.icon}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <span className="font-bold text-gray-900 block text-sm sm:text-base truncate">{item.action}</span>
+                            <span className="text-xs sm:text-sm text-gray-500 truncate block">{item.user}</span>
+                          </div>
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <span className="font-bold text-gray-900 block text-sm sm:text-base truncate">{item.action}</span>
-                          <span className="text-xs sm:text-sm text-gray-500 truncate block">{item.user}</span>
+                        <div className="flex items-center ml-12 sm:ml-0">
+                          <FaClock className="text-gray-400 mr-1 sm:mr-2 text-sm" />
+                          <span className="text-xs sm:text-sm text-gray-600 font-semibold whitespace-nowrap">{item.time}</span>
                         </div>
                       </div>
-                      <div className="flex items-center ml-12 sm:ml-0">
-                        <FaClock className="text-gray-400 mr-1 sm:mr-2 text-sm" />
-                        <span className="text-xs sm:text-sm text-gray-600 font-semibold whitespace-nowrap">{item.time}</span>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Right Column - 1 col */}
             <div className="space-y-6 sm:space-y-8">
-              {/* Pending Tasks - Enhanced */}
-              <div className="bg-gradient-to-br from-orange-500 via-pink-500 to-purple-600 rounded-2xl sm:rounded-3xl shadow-2xl p-6 sm:p-8 text-white hover:shadow-orange-500/40 transition-all duration-500 hover:-translate-y-2 relative overflow-hidden">
+              {/* Pending Tasks - Hidden until we have real data */}
+              {pendingTasks.length > 0 && (
+                <div className="bg-gradient-to-br from-orange-500 via-pink-500 to-purple-600 rounded-2xl sm:rounded-3xl shadow-2xl p-6 sm:p-8 text-white hover:shadow-orange-500/40 transition-all duration-500 hover:-translate-y-2 relative overflow-hidden">
                 <div className="absolute inset-0 opacity-20">
                   {[...Array(3)].map((_, i) => (
                     <div
@@ -323,16 +356,17 @@ export default function AdminDashboard() {
                   </button>
                 </div>
               </div>
+              )}
 
               {/* Quick Stats - Enhanced */}
               <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl p-6 sm:p-8 hover:shadow-purple-500/20 transition-all duration-500">
                 <h2 className="text-xl sm:text-2xl font-black text-gray-900 mb-4 sm:mb-6">Today&apos;s Summary</h2>
                 <div className="space-y-3 sm:space-y-4">
                   {[
-                    { label: 'Present Students', value: '1,180', icon: FaCheckCircle, color: 'text-green-600', bg: 'bg-green-50' },
-                    { label: 'Present Staff', value: '82', icon: FaCheckCircle, color: 'text-blue-600', bg: 'bg-blue-50' },
-                    { label: 'Pending Fees', value: '₹12.5L', icon: FaExclamationTriangle, color: 'text-orange-600', bg: 'bg-orange-50' },
-                    { label: 'New Inquiries', value: '15', icon: FaBell, color: 'text-purple-600', bg: 'bg-purple-50' },
+                    { label: 'Present Students', value: dashboardData?.todaySummary.presentStudents || 0, icon: FaCheckCircle, color: 'text-green-600', bg: 'bg-green-50' },
+                    { label: 'Present Staff', value: dashboardData?.todaySummary.presentStaff || 0, icon: FaCheckCircle, color: 'text-blue-600', bg: 'bg-blue-50' },
+                    { label: 'Pending Fees', value: dashboardData ? formatCurrency(dashboardData.stats.pendingFees) : '₹0', icon: FaExclamationTriangle, color: 'text-orange-600', bg: 'bg-orange-50' },
+                    { label: 'Total Classes', value: dashboardData?.stats.totalClasses || 0, icon: FaSchool, color: 'text-purple-600', bg: 'bg-purple-50' },
                   ].map((item, index) => (
                     <div
                       key={index}
@@ -347,75 +381,46 @@ export default function AdminDashboard() {
                   ))}
                 </div>
               </div>
+            </div>
+          </div>
 
-              {/* Top Performers - Enhanced */}
-              <div className="bg-gradient-to-br from-yellow-400 via-orange-400 to-pink-500 rounded-2xl sm:rounded-3xl shadow-2xl p-6 sm:p-8 text-white hover:shadow-yellow-500/40 transition-all duration-500 hover:-translate-y-2">
-                <div className="flex items-center mb-4 sm:mb-6">
-                  <FaTrophy className="text-3xl sm:text-4xl mr-2 sm:mr-3 animate-bounce-slow" />
-                  <h2 className="text-xl sm:text-2xl font-black">Top Performers</h2>
+          {/* Bottom Section - Upcoming Events - Hidden until we have real data */}
+          {false && (
+            <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-2xl sm:rounded-3xl shadow-2xl p-6 sm:p-8 text-white hover:shadow-blue-500/40 transition-all duration-500 animate-fadeInUp">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4 sm:gap-0">
+                <div className="flex items-center">
+                  <FaCalendarAlt className="text-3xl sm:text-4xl mr-3 sm:mr-4 animate-bounce-slow flex-shrink-0" />
+                  <h2 className="text-2xl sm:text-3xl font-black">Upcoming Events</h2>
                 </div>
-                <div className="space-y-2 sm:space-y-3">
-                  {[
-                    { name: 'Rahul Kumar', class: 'Class 10-A', score: '98%' },
-                    { name: 'Priya Sharma', class: 'Class 9-B', score: '97%' },
-                    { name: 'Amit Patel', class: 'Class 10-C', score: '96%' },
-                  ].map((student, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between p-3 sm:p-4 bg-white/20 backdrop-blur-md rounded-xl hover:bg-white/30 transition-all"
-                    >
-                      <div className="flex items-center min-w-0 flex-1">
-                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white rounded-full flex items-center justify-center mr-2 sm:mr-3 font-black text-purple-600 text-sm sm:text-base flex-shrink-0">
-                          {index + 1}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="font-bold text-sm sm:text-base truncate">{student.name}</p>
-                          <p className="text-xs sm:text-sm opacity-90">{student.class}</p>
-                        </div>
-                      </div>
-                      <span className="text-xl sm:text-2xl font-black flex-shrink-0 ml-2">{student.score}</span>
+                <button className="px-4 sm:px-6 py-2 bg-white/20 backdrop-blur-md rounded-xl font-bold hover:bg-white/30 transition-all text-sm sm:text-base self-start sm:self-auto">
+                  View Calendar
+                </button>
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
+                {[
+                  { event: 'Parent-Teacher Meeting', date: 'Nov 5, 2025', time: '10:00 AM' },
+                  { event: 'Annual Sports Day', date: 'Nov 10, 2025', time: '9:00 AM' },
+                  { event: 'Science Exhibition', date: 'Nov 15, 2025', time: '11:00 AM' },
+                ].map((event, index) => (
+                  <div
+                    key={index}
+                    className="p-4 sm:p-5 md:p-6 bg-white/10 backdrop-blur-md rounded-xl sm:rounded-2xl hover:bg-white/20 transition-all hover:scale-105"
+                  >
+                    <p className="font-black text-base sm:text-lg mb-2">{event.event}</p>
+                    <div className="flex items-center text-xs sm:text-sm opacity-90 mb-1">
+                      <FaCalendarAlt className="mr-2 flex-shrink-0" />
+                      <span>{event.date}</span>
                     </div>
-                  ))}
-                </div>
+                    <div className="flex items-center text-xs sm:text-sm opacity-90">
+                      <FaClock className="mr-2 flex-shrink-0" />
+                      <span>{event.time}</span>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-          </div>
-
-          {/* Bottom Section - Upcoming Events */}
-          <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-2xl sm:rounded-3xl shadow-2xl p-6 sm:p-8 text-white hover:shadow-blue-500/40 transition-all duration-500 animate-fadeInUp">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4 sm:gap-0">
-              <div className="flex items-center">
-                <FaCalendarAlt className="text-3xl sm:text-4xl mr-3 sm:mr-4 animate-bounce-slow flex-shrink-0" />
-                <h2 className="text-2xl sm:text-3xl font-black">Upcoming Events</h2>
-              </div>
-              <button className="px-4 sm:px-6 py-2 bg-white/20 backdrop-blur-md rounded-xl font-bold hover:bg-white/30 transition-all text-sm sm:text-base self-start sm:self-auto">
-                View Calendar
-              </button>
-            </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
-              {[
-                { event: 'Parent-Teacher Meeting', date: 'Nov 5, 2025', time: '10:00 AM' },
-                { event: 'Annual Sports Day', date: 'Nov 10, 2025', time: '9:00 AM' },
-                { event: 'Science Exhibition', date: 'Nov 15, 2025', time: '11:00 AM' },
-              ].map((event, index) => (
-                <div
-                  key={index}
-                  className="p-4 sm:p-5 md:p-6 bg-white/10 backdrop-blur-md rounded-xl sm:rounded-2xl hover:bg-white/20 transition-all hover:scale-105"
-                >
-                  <p className="font-black text-base sm:text-lg mb-2">{event.event}</p>
-                  <div className="flex items-center text-xs sm:text-sm opacity-90 mb-1">
-                    <FaCalendarAlt className="mr-2 flex-shrink-0" />
-                    <span>{event.date}</span>
-                  </div>
-                  <div className="flex items-center text-xs sm:text-sm opacity-90">
-                    <FaClock className="mr-2 flex-shrink-0" />
-                    <span>{event.time}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          )}
         </div>
       </DashboardLayout>
     </ProtectedRoute>

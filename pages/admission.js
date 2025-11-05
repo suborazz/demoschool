@@ -19,6 +19,9 @@ export default function Admission() {
     previousSchool: '',
     message: ''
   });
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   const admissionSteps = [
     { 
@@ -55,15 +58,108 @@ export default function Admission() {
     }
   ];
 
+  const validateField = (name, value) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const phoneRegex = /^[\d\s\+\-\(\)]+$/;
+
+    switch (name) {
+      case 'studentName':
+        if (!value.trim()) return 'Student name is required';
+        if (value.trim().length < 2) return 'Name must be at least 2 characters';
+        return '';
+      case 'parentName':
+        if (!value.trim()) return 'Parent name is required';
+        if (value.trim().length < 2) return 'Name must be at least 2 characters';
+        return '';
+      case 'grade':
+        if (!value.trim()) return 'Grade is required';
+        return '';
+      case 'dateOfBirth':
+        if (!value) return 'Date of birth is required';
+        const age = Math.floor((new Date() - new Date(value)) / 31557600000);
+        if (age < 3 || age > 20) return 'Age must be between 3 and 20 years';
+        return '';
+      case 'email':
+        if (!value.trim()) return 'Email is required';
+        if (!emailRegex.test(value)) return 'Please enter a valid email address';
+        return '';
+      case 'phone':
+        if (!value.trim()) return 'Phone number is required';
+        if (!phoneRegex.test(value)) return 'Only digits, spaces, +, -, () allowed';
+        if (value.replace(/\D/g, '').length < 10) return 'Phone must have at least 10 digits';
+        return '';
+      case 'address':
+        if (!value.trim()) return 'Address is required';
+        if (value.trim().length < 10) return 'Address must be at least 10 characters';
+        return '';
+      default:
+        return '';
+    }
+  };
+
+  const validateForm = () => {
+    const errors = [];
+    if (!formData.studentName.trim()) errors.push('Student name is required');
+    if (formData.studentName.trim().length < 2) errors.push('Student name must be at least 2 characters');
+    if (!formData.parentName.trim()) errors.push('Parent name is required');
+    if (!formData.grade.trim()) errors.push('Grade is required');
+    if (!formData.dateOfBirth) errors.push('Date of birth is required');
+    if (!formData.email.trim()) errors.push('Email is required');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) errors.push('Invalid email format');
+    if (!formData.phone.trim()) errors.push('Phone is required');
+    if (formData.phone.replace(/\D/g, '').length < 10) errors.push('Phone must have at least 10 digits');
+    if (!formData.address.trim()) errors.push('Address is required');
+    if (formData.address.trim().length < 10) errors.push('Address must be at least 10 characters');
+    return errors;
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    alert('Admission inquiry submitted! We will contact you soon.');
+    setError('');
+    setSuccess('');
+
+    const validationErrors = validateForm();
+    if (validationErrors.length > 0) {
+      setError(validationErrors.join('. '));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    // Simulate submission
+    setSuccess('Admission inquiry submitted successfully! We will contact you within 48 hours.');
+    setFormData({
+      studentName: '',
+      grade: '',
+      parentName: '',
+      dateOfBirth: '',
+      email: '',
+      phone: '',
+      address: '',
+      previousSchool: '',
+      message: ''
+    });
+    setFieldErrors({});
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setTimeout(() => setSuccess(''), 5000);
   };
 
   const handleChange = (e) => {
+    const { name, value } = e.target;
+
+    // Clear field error when user starts typing
+    if (fieldErrors[name]) {
+      setFieldErrors(prev => ({ ...prev, [name]: '' }));
+    }
+
+    // Validate field in real-time
+    const error = validateField(name, value);
+    if (error) {
+      setFieldErrors(prev => ({ ...prev, [name]: error }));
+    }
+
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [name]: value
     });
   };
 
@@ -147,6 +243,22 @@ export default function Admission() {
 
             {/* Form - Enhanced */}
             <form onSubmit={handleSubmit} className="space-y-8 relative">
+              {/* Error Message */}
+              {error && (
+                <div className="bg-red-50 border-2 border-red-500 text-red-700 px-6 py-4 rounded-xl flex items-start animate-shake">
+                  <span className="text-xl mr-3">⚠️</span>
+                  <p className="font-bold">{error}</p>
+                </div>
+              )}
+
+              {/* Success Message */}
+              {success && (
+                <div className="bg-green-50 border-2 border-green-500 text-green-700 px-6 py-4 rounded-xl flex items-start animate-pulse">
+                  <span className="text-xl mr-3">✅</span>
+                  <p className="font-bold">{success}</p>
+                </div>
+              )}
+
               <div className="grid md:grid-cols-2 gap-8">
                 {/* Student Name */}
                 <div className="group">
@@ -159,10 +271,15 @@ export default function Admission() {
                     name="studentName"
                     value={formData.studentName}
                     onChange={handleChange}
-                    className="input-field"
+                    className={`input-field ${fieldErrors.studentName ? 'border-red-500 border-2' : ''}`}
                     placeholder="Enter student's full name"
-                    required
                   />
+                  {fieldErrors.studentName && (
+                    <p className="text-red-500 text-sm mt-2 font-semibold flex items-center">
+                      <span className="mr-1">⚠️</span>
+                      {fieldErrors.studentName}
+                    </p>
+                  )}
                 </div>
 
                 {/* Date of Birth */}
@@ -176,9 +293,14 @@ export default function Admission() {
                     name="dateOfBirth"
                     value={formData.dateOfBirth}
                     onChange={handleChange}
-                    className="input-field"
-                    required
+                    className={`input-field ${fieldErrors.dateOfBirth ? 'border-red-500 border-2' : ''}`}
                   />
+                  {fieldErrors.dateOfBirth && (
+                    <p className="text-red-500 text-sm mt-2 font-semibold flex items-center">
+                      <span className="mr-1">⚠️</span>
+                      {fieldErrors.dateOfBirth}
+                    </p>
+                  )}
                 </div>
 
                 {/* Grade/Class */}
@@ -191,14 +313,19 @@ export default function Admission() {
                     name="grade"
                     value={formData.grade}
                     onChange={handleChange}
-                    className="input-field"
-                    required
+                    className={`input-field ${fieldErrors.grade ? 'border-red-500 border-2' : ''}`}
                   >
                     <option value="">Select Grade</option>
                     {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(grade => (
                       <option key={grade} value={grade}>Class {grade}</option>
                     ))}
                   </select>
+                  {fieldErrors.grade && (
+                    <p className="text-red-500 text-sm mt-2 font-semibold flex items-center">
+                      <span className="mr-1">⚠️</span>
+                      {fieldErrors.grade}
+                    </p>
+                  )}
                 </div>
 
                 {/* Parent/Guardian Name */}
@@ -212,10 +339,15 @@ export default function Admission() {
                     name="parentName"
                     value={formData.parentName}
                     onChange={handleChange}
-                    className="input-field"
+                    className={`input-field ${fieldErrors.parentName ? 'border-red-500 border-2' : ''}`}
                     placeholder="Enter parent's name"
-                    required
                   />
+                  {fieldErrors.parentName && (
+                    <p className="text-red-500 text-sm mt-2 font-semibold flex items-center">
+                      <span className="mr-1">⚠️</span>
+                      {fieldErrors.parentName}
+                    </p>
+                  )}
                 </div>
 
                 {/* Email Address */}
@@ -229,10 +361,15 @@ export default function Admission() {
                     name="email"
                     value={formData.email}
                     onChange={handleChange}
-                    className="input-field"
+                    className={`input-field ${fieldErrors.email ? 'border-red-500 border-2' : ''}`}
                     placeholder="your.email@example.com"
-                    required
                   />
+                  {fieldErrors.email && (
+                    <p className="text-red-500 text-sm mt-2 font-semibold flex items-center">
+                      <span className="mr-1">⚠️</span>
+                      {fieldErrors.email}
+                    </p>
+                  )}
                 </div>
 
                 {/* Phone Number */}
@@ -246,10 +383,15 @@ export default function Admission() {
                     name="phone"
                     value={formData.phone}
                     onChange={handleChange}
-                    className="input-field"
+                    className={`input-field ${fieldErrors.phone ? 'border-red-500 border-2' : ''}`}
                     placeholder="+91 XXXXXXXXXX"
-                    required
                   />
+                  {fieldErrors.phone && (
+                    <p className="text-red-500 text-sm mt-2 font-semibold flex items-center">
+                      <span className="mr-1">⚠️</span>
+                      {fieldErrors.phone}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -264,10 +406,15 @@ export default function Admission() {
                   name="address"
                   value={formData.address}
                   onChange={handleChange}
-                  className="input-field"
+                  className={`input-field ${fieldErrors.address ? 'border-red-500 border-2' : ''}`}
                   placeholder="Complete address"
-                  required
                 />
+                {fieldErrors.address && (
+                  <p className="text-red-500 text-sm mt-2 font-semibold flex items-center">
+                    <span className="mr-1">⚠️</span>
+                    {fieldErrors.address}
+                  </p>
+                )}
               </div>
 
               {/* Previous School */}

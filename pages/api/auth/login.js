@@ -17,8 +17,11 @@ export default async function handler(req, res) {
 
     const { email, password } = req.body;
 
+    console.log('🔐 Login attempt:', { email, passwordLength: password?.length });
+
     // Validate email and password
     if (!email || !password) {
+      console.log('❌ Missing credentials');
       return res.status(400).json({
         success: false,
         message: 'Please provide email and password'
@@ -26,19 +29,31 @@ export default async function handler(req, res) {
     }
 
     // Check for user (include password for comparison)
-    const user = await User.findOne({ email }).select('+password');
+    const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
 
     if (!user) {
+      console.log('❌ User not found:', email);
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials'
       });
     }
 
+    console.log('✅ User found:', { 
+      id: user._id, 
+      email: user.email, 
+      role: user.role,
+      isActive: user.isActive,
+      hasPassword: !!user.password 
+    });
+
     // Check if password matches
     const isMatch = await user.comparePassword(password);
 
+    console.log('🔑 Password match:', isMatch);
+
     if (!isMatch) {
+      console.log('❌ Password incorrect for:', email);
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials'
@@ -47,11 +62,14 @@ export default async function handler(req, res) {
 
     // Check if user is active
     if (!user.isActive) {
+      console.log('❌ Account inactive:', email);
       return res.status(401).json({
         success: false,
         message: 'Your account has been deactivated. Please contact the administrator.'
       });
     }
+
+    console.log('✅ Login successful for:', email);
 
     // Update last login
     user.lastLogin = new Date();

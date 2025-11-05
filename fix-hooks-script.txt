@@ -1,0 +1,19 @@
+# Remaining files to fix:
+# Admin pages:
+- pages/admin/notifications.js
+- pages/admin/reports.js
+
+# Staff pages:
+- pages/staff/dashboard.js
+- pages/staff/mark-attendance.js
+- pages/staff/add-grades.js
+- pages/staff/schedule.js
+- pages/staff/class-analytics.js
+- pages/staff/student-reports.js
+
+# Student pages:
+- pages/student/dashboard.js
+- pages/student/attendance.js
+- pages/student/grades.js
+- pages/student/fees.js
+

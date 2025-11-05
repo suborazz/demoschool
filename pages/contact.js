@@ -15,6 +15,9 @@ export default function Contact() {
     subject: '',
     message: ''
   });
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   const contactInfo = [
     { 
@@ -50,15 +53,94 @@ export default function Contact() {
     { icon: FaLinkedin, name: 'LinkedIn', color: 'text-blue-700', bgHover: 'hover:bg-blue-50', url: '#' }
   ];
 
+  const validateField = (name, value) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const phoneRegex = /^[\d\s\+\-\(\)]+$/;
+
+    switch (name) {
+      case 'name':
+        if (!value.trim()) return 'Name is required';
+        if (value.trim().length < 2) return 'Name must be at least 2 characters';
+        return '';
+      case 'email':
+        if (!value.trim()) return 'Email is required';
+        if (!emailRegex.test(value)) return 'Please enter a valid email address';
+        return '';
+      case 'phone':
+        if (!value.trim()) return 'Phone number is required';
+        if (!phoneRegex.test(value)) return 'Only digits, spaces, +, -, () allowed';
+        if (value.replace(/\D/g, '').length < 10) return 'Phone must have at least 10 digits';
+        return '';
+      case 'subject':
+        if (!value.trim()) return 'Subject is required';
+        if (value.trim().length < 3) return 'Subject must be at least 3 characters';
+        return '';
+      case 'message':
+        if (!value.trim()) return 'Message is required';
+        if (value.trim().length < 10) return 'Message must be at least 10 characters';
+        return '';
+      default:
+        return '';
+    }
+  };
+
+  const validateForm = () => {
+    const errors = [];
+    if (!formData.name.trim()) errors.push('Name is required');
+    if (formData.name.trim().length < 2) errors.push('Name must be at least 2 characters');
+    if (!formData.email.trim()) errors.push('Email is required');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) errors.push('Invalid email format');
+    if (!formData.phone.trim()) errors.push('Phone is required');
+    if (formData.phone.replace(/\D/g, '').length < 10) errors.push('Phone must have at least 10 digits');
+    if (!formData.subject.trim()) errors.push('Subject is required');
+    if (!formData.message.trim()) errors.push('Message is required');
+    if (formData.message.trim().length < 10) errors.push('Message must be at least 10 characters');
+    return errors;
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    alert('Message sent! We will respond within 24 hours.');
+    setError('');
+    setSuccess('');
+
+    const validationErrors = validateForm();
+    if (validationErrors.length > 0) {
+      setError(validationErrors.join('. '));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    // Simulate sending message
+    setSuccess('Message sent successfully! We will respond within 24 hours.');
+    setFormData({
+      name: '',
+      email: '',
+      phone: '',
+      subject: '',
+      message: ''
+    });
+    setFieldErrors({});
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setTimeout(() => setSuccess(''), 5000);
   };
 
   const handleChange = (e) => {
+    const { name, value } = e.target;
+
+    // Clear field error when user starts typing
+    if (fieldErrors[name]) {
+      setFieldErrors(prev => ({ ...prev, [name]: '' }));
+    }
+
+    // Validate field in real-time
+    const error = validateField(name, value);
+    if (error) {
+      setFieldErrors(prev => ({ ...prev, [name]: error }));
+    }
+
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [name]: value
     });
   };
 
@@ -217,6 +299,22 @@ export default function Contact() {
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-8 relative">
+                {/* Error Message */}
+                {error && (
+                  <div className="bg-red-50 border-2 border-red-500 text-red-700 px-6 py-4 rounded-xl flex items-start animate-shake">
+                    <span className="text-xl mr-3">⚠️</span>
+                    <p className="font-bold">{error}</p>
+                  </div>
+                )}
+
+                {/* Success Message */}
+                {success && (
+                  <div className="bg-green-50 border-2 border-green-500 text-green-700 px-6 py-4 rounded-xl flex items-start animate-pulse">
+                    <span className="text-xl mr-3">✅</span>
+                    <p className="font-bold">{success}</p>
+                  </div>
+                )}
+
                 {/* Your Name */}
                 <div>
                   <label className="label">Your Name *</label>
@@ -225,10 +323,15 @@ export default function Contact() {
                     name="name"
                     value={formData.name}
                     onChange={handleChange}
-                    className="input-field"
+                    className={`input-field ${fieldErrors.name ? 'border-red-500 border-2' : ''}`}
                     placeholder="Enter your name"
-                    required
                   />
+                  {fieldErrors.name && (
+                    <p className="text-red-500 text-sm mt-2 font-semibold flex items-center">
+                      <span className="mr-1">⚠️</span>
+                      {fieldErrors.name}
+                    </p>
+                  )}
                 </div>
 
                 {/* Email Address */}
@@ -239,10 +342,15 @@ export default function Contact() {
                     name="email"
                     value={formData.email}
                     onChange={handleChange}
-                    className="input-field"
+                    className={`input-field ${fieldErrors.email ? 'border-red-500 border-2' : ''}`}
                     placeholder="your.email@example.com"
-                    required
                   />
+                  {fieldErrors.email && (
+                    <p className="text-red-500 text-sm mt-2 font-semibold flex items-center">
+                      <span className="mr-1">⚠️</span>
+                      {fieldErrors.email}
+                    </p>
+                  )}
                 </div>
 
                 {/* Phone Number */}
@@ -253,10 +361,15 @@ export default function Contact() {
                     name="phone"
                     value={formData.phone}
                     onChange={handleChange}
-                    className="input-field"
+                    className={`input-field ${fieldErrors.phone ? 'border-red-500 border-2' : ''}`}
                     placeholder="+91 XXXXXXXXXX"
-                    required
                   />
+                  {fieldErrors.phone && (
+                    <p className="text-red-500 text-sm mt-2 font-semibold flex items-center">
+                      <span className="mr-1">⚠️</span>
+                      {fieldErrors.phone}
+                    </p>
+                  )}
                 </div>
 
                 {/* Subject */}
@@ -267,10 +380,15 @@ export default function Contact() {
                     name="subject"
                     value={formData.subject}
                     onChange={handleChange}
-                    className="input-field"
+                    className={`input-field ${fieldErrors.subject ? 'border-red-500 border-2' : ''}`}
                     placeholder="What is this about?"
-                    required
                   />
+                  {fieldErrors.subject && (
+                    <p className="text-red-500 text-sm mt-2 font-semibold flex items-center">
+                      <span className="mr-1">⚠️</span>
+                      {fieldErrors.subject}
+                    </p>
+                  )}
                 </div>
 
                 {/* Message */}
@@ -281,10 +399,15 @@ export default function Contact() {
                     value={formData.message}
                     onChange={handleChange}
                     rows="6"
-                    className="input-field"
+                    className={`input-field ${fieldErrors.message ? 'border-red-500 border-2' : ''}`}
                     placeholder="Tell us how we can help you..."
-                    required
                   ></textarea>
+                  {fieldErrors.message && (
+                    <p className="text-red-500 text-sm mt-2 font-semibold flex items-center">
+                      <span className="mr-1">⚠️</span>
+                      {fieldErrors.message}
+                    </p>
+                  )}
                 </div>
 
                 {/* Submit Button - Enhanced */}

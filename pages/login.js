@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import Layout from '../components/Layout';
 import { 
@@ -11,7 +11,13 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const { login } = useAuth();
+
+  // Prevent hydration mismatch by only rendering random elements on client
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const roles = [
     { name: 'Admin', email: 'admin@davschool.edu.in', icon: FaUserShield, gradient: 'from-blue-500 via-blue-600 to-cyan-500', emoji: '👨‍💼' },
@@ -49,23 +55,25 @@ export default function Login() {
           <div className="absolute bottom-0 left-1/2 w-48 h-48 sm:w-72 sm:h-72 md:w-96 md:h-96 bg-blue-400 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-4000"></div>
         </div>
 
-        {/* Floating Elements */}
-        <div className="absolute inset-0 overflow-hidden opacity-15">
-          {[...Array(30)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute bg-white rounded-full"
-              style={{
-                width: `${Math.random() * 100 + 50}px`,
-                height: `${Math.random() * 100 + 50}px`,
-                top: `${Math.random() * 100}%`,
-                left: `${Math.random() * 100}%`,
-                animation: `float ${Math.random() * 15 + 10}s ease-in-out infinite`,
-                animationDelay: `${Math.random() * 5}s`
-              }}
-            />
-          ))}
-        </div>
+        {/* Floating Elements - Only render on client to prevent hydration mismatch */}
+        {mounted && (
+          <div className="absolute inset-0 overflow-hidden opacity-15">
+            {[...Array(30)].map((_, i) => (
+              <div
+                key={i}
+                className="absolute bg-white rounded-full"
+                style={{
+                  width: `${Math.random() * 100 + 50}px`,
+                  height: `${Math.random() * 100 + 50}px`,
+                  top: `${Math.random() * 100}%`,
+                  left: `${Math.random() * 100}%`,
+                  animation: `float ${Math.random() * 15 + 10}s ease-in-out infinite`,
+                  animationDelay: `${Math.random() * 5}s`
+                }}
+              />
+            ))}
+          </div>
+        )}
 
         <div className="max-w-7xl mx-auto relative z-10">
           {/* Header - Enhanced */}

@@ -12,13 +12,24 @@ const classSchema = new mongoose.Schema({
     min: 1,
     max: 12
   },
+  section: {
+    type: String,
+    trim: true,
+    default: 'A'
+  },
   sections: [{
     type: String,
     trim: true
   }],
   capacity: {
     type: Number,
-    default: 40
+    default: 40,
+    min: 1
+  },
+  room: {
+    type: String,
+    trim: true,
+    default: ''
   },
   classTeacher: {
     type: mongoose.Schema.Types.ObjectId,
