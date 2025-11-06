@@ -3,9 +3,10 @@ import { useAuth } from '../../context/AuthContext';
 import DashboardLayout from '../../components/DashboardLayout';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 import { 
   FaClipboardCheck, FaCalendarAlt, FaUsers, FaCheckCircle, 
-  FaTimesCircle, FaSpinner, FaSave, FaTimes
+  FaTimesCircle, FaSpinner, FaSave, FaTimes, FaUserCheck
 } from 'react-icons/fa';
 
 export default function Attendance() {
@@ -30,6 +31,7 @@ export default function Attendance() {
       setClasses(Array.isArray(classesData) ? classesData : []);
     } catch (error) {
       console.error('Error fetching classes:', error);
+      toast.error('Failed to load classes');
     }
   }, [token]);
 
@@ -42,6 +44,7 @@ export default function Attendance() {
       setStats(response.data.stats || {});
     } catch (error) {
       console.error('Error fetching attendance stats:', error);
+      toast.error('Failed to load attendance statistics');
     }
   }, [token, selectedDate]);
 
@@ -55,6 +58,12 @@ export default function Attendance() {
       const filtered = allStudents.filter(s => s.class?._id === selectedClass);
       setStudents(filtered);
       
+      if (filtered.length === 0) {
+        toast('No students found in the selected class', {
+          icon: 'ℹ️',
+        });
+      }
+      
       // Initialize attendance
       const initialAttendance = {};
       filtered.forEach(student => {
@@ -63,6 +72,7 @@ export default function Attendance() {
       setAttendance(initialAttendance);
     } catch (error) {
       console.error('Error fetching students:', error);
+      toast.error('Failed to load students');
     } finally {
       setLoading(false);
     }
@@ -119,13 +129,11 @@ export default function Attendance() {
     // Validate
     const validationErrors = validateAttendance();
     if (validationErrors.length > 0) {
-      setError(validationErrors.join('. '));
-      setTimeout(() => setError(''), 5000);
+      toast.error(validationErrors.join('. '));
       return;
     }
 
     setSubmitting(true);
-    setError('');
 
     try {
       const attendanceRecords = Object.entries(attendance).map(([studentId, status]) => ({
@@ -141,7 +149,7 @@ export default function Attendance() {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      setSuccess('Attendance marked successfully for ' + students.length + ' students!');
+      toast.success(`Attendance marked successfully for ${students.length} students!`);
       
       // Reset
       setSelectedClass('');
@@ -149,12 +157,10 @@ export default function Attendance() {
       setAttendance({});
       
       fetchAttendanceStats();
-      
-      setTimeout(() => setSuccess(''), 5000);
     } catch (error) {
       console.error('Error marking attendance:', error);
-      setError(error.response?.data?.message || 'Failed to mark attendance');
-      setTimeout(() => setError(''), 5000);
+      const errorMsg = error.response?.data?.message || 'Failed to mark attendance';
+      toast.error(errorMsg);
     } finally {
       setSubmitting(false);
     }

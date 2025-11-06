@@ -27,21 +27,17 @@ export default async function handler(req, res) {
       return res.status(403).json({ success: false, message: 'Access denied. Admin only.' });
     }
 
-    // GET - Fetch all events
+    // Handle GET request - Fetch all events
     if (req.method === 'GET') {
-      const events = await Event.find()
-        .populate('createdBy', 'firstName lastName')
-        .populate('targetClasses')
-        .sort({ startDate: 1 });
-
-      return res.status(200).json({
+      const events = await Event.find().sort({ startDate: 1 });
+      
+      return res.json({
         success: true,
-        count: events.length,
         data: events
       });
     }
 
-    // POST - Create new event
+    // Handle POST request - Create new event
     if (req.method === 'POST') {
       const {
         title,
@@ -57,63 +53,47 @@ export default async function handler(req, res) {
       } = req.body;
 
       // Validation
-      const validationErrors = [];
-
-      if (!title || !title.trim()) validationErrors.push('Event title is required');
-      if (!eventType) validationErrors.push('Event type is required');
-      if (!startDate) validationErrors.push('Start date is required');
-      if (!endDate) validationErrors.push('End date is required');
-
-      // Date validation
-      if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
-        validationErrors.push('End date must be after start date');
-      }
-
-      if (validationErrors.length > 0) {
+      if (!title || !eventType || !startDate || !endDate) {
         return res.status(400).json({
           success: false,
-          message: validationErrors.join('. ')
+          message: 'Title, event type, start date, and end date are required'
         });
       }
 
       // Create event
-      const newEvent = await Event.create({
-        title: title.trim(),
-        description: description?.trim() || '',
+      const event = await Event.create({
+        title,
+        description,
         eventType,
         startDate: new Date(startDate),
         endDate: new Date(endDate),
-        startTime: startTime || '',
-        endTime: endTime || '',
-        location: location?.trim() || '',
+        startTime,
+        endTime,
+        location,
         targetAudience: targetAudience || 'all',
         color: color || 'blue',
         createdBy: userId
       });
 
-      const populatedEvent = await Event.findById(newEvent._id)
-        .populate('createdBy', 'firstName lastName');
-
       return res.status(201).json({
         success: true,
         message: 'Event created successfully',
-        data: populatedEvent
+        data: event
       });
     }
 
     // Method not allowed
     return res.status(405).json({
       success: false,
-      message: `Method ${req.method} not allowed`
+      message: 'Method not allowed'
     });
 
   } catch (error) {
     console.error('Events API Error:', error);
     return res.status(500).json({
       success: false,
-      message: 'Server error',
+      message: 'Internal server error',
       error: error.message
     });
   }
 }
-

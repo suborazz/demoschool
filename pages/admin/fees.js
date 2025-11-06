@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import DashboardLayout from '../../components/DashboardLayout';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 import { 
   FaMoneyBillWave, FaPlus, FaSearch, FaDownload, FaCheckCircle,
   FaExclamationCircle, FaClock, FaUsers, FaFileInvoice, FaTimes,
@@ -50,7 +51,7 @@ export default function FeeManagement() {
       setStats(response.data.stats || {});
     } catch (error) {
       console.error('Error fetching fees:', error);
-      setError(error.response?.data?.message || 'Failed to load fees');
+      toast.error(error.response?.data?.message || 'Failed to load fees');
     } finally {
       setLoading(false);
     }
@@ -65,6 +66,7 @@ export default function FeeManagement() {
       setStudents(Array.isArray(studentsData) ? studentsData : []);
     } catch (error) {
       console.error('Error fetching students:', error);
+      toast.error('Failed to load students');
     }
   }, [token]);
 
@@ -156,7 +158,7 @@ export default function FeeManagement() {
 
     const validationErrors = validateFeeForm();
     if (validationErrors.length > 0) {
-      setError(validationErrors.join('. '));
+      toast.error(validationErrors.join('. '));
       setSubmitting(false);
       return;
     }
@@ -166,15 +168,13 @@ export default function FeeManagement() {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      setSuccess('Fee record created successfully!');
+      toast.success('Fee record created successfully!');
       setShowModal(false);
       resetForm();
       fetchFees();
-      
-      setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
       console.error('Error creating fee:', error);
-      setError(error.response?.data?.message || 'Failed to create fee record');
+      toast.error(error.response?.data?.message || 'Failed to create fee record');
     } finally {
       setSubmitting(false);
     }
@@ -187,7 +187,7 @@ export default function FeeManagement() {
 
     const validationErrors = validatePaymentForm();
     if (validationErrors.length > 0) {
-      setError(validationErrors.join('. '));
+      toast.error(validationErrors.join('. '));
       setSubmitting(false);
       return;
     }
@@ -197,16 +197,14 @@ export default function FeeManagement() {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      setSuccess(`Payment recorded! Receipt: ${response.data.receiptNumber}`);
+      toast.success(`Payment recorded! Receipt: ${response.data.receiptNumber || 'Generated'}`);
       setShowPaymentModal(false);
       setSelectedFee(null);
       resetPaymentForm();
       fetchFees();
-      
-      setTimeout(() => setSuccess(''), 5000);
     } catch (error) {
       console.error('Error recording payment:', error);
-      setError(error.response?.data?.message || 'Failed to record payment');
+      toast.error(error.response?.data?.message || 'Failed to record payment');
     } finally {
       setSubmitting(false);
     }
@@ -220,13 +218,11 @@ export default function FeeManagement() {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      setSuccess('Fee record deleted successfully!');
+      toast.success('Fee record deleted successfully!');
       fetchFees();
-      setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
       console.error('Error deleting fee:', error);
-      setError(error.response?.data?.message || 'Failed to delete fee');
-      setTimeout(() => setError(''), 5000);
+      toast.error(error.response?.data?.message || 'Failed to delete fee');
     }
   };
 

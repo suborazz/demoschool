@@ -15,6 +15,7 @@ export default function StudentReports() {
     if (token) {
       fetchStudents();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   const fetchStudents = async () => {

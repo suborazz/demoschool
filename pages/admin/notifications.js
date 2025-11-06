@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import DashboardLayout from '../../components/DashboardLayout';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 import { 
   FaBell, FaPlus, FaUsers, FaPaperPlane, FaCheckCircle, 
   FaExclamationCircle, FaInfoCircle, FaTimes, FaSave, FaSpinner
@@ -37,6 +38,7 @@ export default function Notifications() {
       setStats(response.data.stats || {});
     } catch (error) {
       console.error('Error fetching notifications:', error);
+      toast.error('Failed to load notifications');
     } finally {
       setLoading(false);
     }
@@ -102,7 +104,7 @@ export default function Notifications() {
 
     const validationErrors = validateForm();
     if (validationErrors.length > 0) {
-      setError(validationErrors.join('. '));
+      toast.error(validationErrors.join('. '));
       setSubmitting(false);
       return;
     }
@@ -112,15 +114,13 @@ export default function Notifications() {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      setSuccess('Notification sent successfully!');
+      toast.success('Notification sent successfully!');
       setShowModal(false);
       resetForm();
       fetchNotifications();
-      
-      setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
       console.error('Error sending notification:', error);
-      setError(error.response?.data?.message || 'Failed to send notification');
+      toast.error(error.response?.data?.message || 'Failed to send notification');
     } finally {
       setSubmitting(false);
     }

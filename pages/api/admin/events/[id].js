@@ -4,6 +4,8 @@ import User from '../../../../models/User';
 import { verify } from 'jsonwebtoken';
 
 export default async function handler(req, res) {
+  const { id } = req.query;
+
   try {
     await connectDB();
 
@@ -27,33 +29,79 @@ export default async function handler(req, res) {
       return res.status(403).json({ success: false, message: 'Access denied. Admin only.' });
     }
 
-    const { id } = req.query;
-
-    // PUT - Update event
-    if (req.method === 'PUT') {
-      const updateData = req.body;
-
-      const updatedEvent = await Event.findByIdAndUpdate(
-        id,
-        { $set: updateData },
-        { new: true, runValidators: true }
-      ).populate('createdBy', 'firstName lastName');
-
-      if (!updatedEvent) {
+    // Handle GET request - Get single event
+    if (req.method === 'GET') {
+      const event = await Event.findById(id);
+      
+      if (!event) {
         return res.status(404).json({
           success: false,
           message: 'Event not found'
         });
       }
 
-      return res.status(200).json({
+      return res.json({
         success: true,
-        message: 'Event updated successfully',
-        data: updatedEvent
+        data: event
       });
     }
 
-    // DELETE - Delete event
+    // Handle PUT request - Update event
+    if (req.method === 'PUT') {
+      const {
+        title,
+        description,
+        eventType,
+        startDate,
+        endDate,
+        startTime,
+        endTime,
+        location,
+        targetAudience,
+        color
+      } = req.body;
+
+      // Validation
+      if (!title || !eventType || !startDate || !endDate) {
+        return res.status(400).json({
+          success: false,
+          message: 'Title, event type, start date, and end date are required'
+        });
+      }
+
+      const event = await Event.findByIdAndUpdate(
+        id,
+        {
+          title,
+          description,
+          eventType,
+          startDate: new Date(startDate),
+          endDate: new Date(endDate),
+          startTime,
+          endTime,
+          location,
+          targetAudience: targetAudience || 'all',
+          color: color || 'blue',
+          updatedBy: userId
+        },
+        { new: true, runValidators: true }
+      );
+
+      if (!event) {
+        return res.status(404).json({
+          success: false,
+          message: 'Event not found'
+        });
+      }
+
+      return res.json({
+        success: true,
+        message: 'Event updated successfully',
+        data: event
+      });
+    }
+
+    // Handle DELETE request - Delete event
     if (req.method === 'DELETE') {
       const event = await Event.findByIdAndDelete(id);
 
@@ -64,7 +112,7 @@ export default async function handler(req, res) {
         });
       }
 
-      return res.status(200).json({
+      return res.json({
         success: true,
         message: 'Event deleted successfully'
       });
@@ -73,16 +121,15 @@ export default async function handler(req, res) {
     // Method not allowed
     return res.status(405).json({
       success: false,
-      message: `Method ${req.method} not allowed`
+      message: 'Method not allowed'
     });
 
   } catch (error) {
     console.error('Event API Error:', error);
     return res.status(500).json({
       success: false,
-      message: 'Server error',
+      message: 'Internal server error',
       error: error.message
     });
   }
 }
-

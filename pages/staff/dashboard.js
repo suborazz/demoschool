@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '../../context/AuthContext';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import DashboardLayout from '../../components/DashboardLayout';
 import { 
@@ -23,6 +24,7 @@ export default function StaffDashboard() {
     if (token) {
       fetchDashboardData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   const fetchDashboardData = async () => {
@@ -34,6 +36,7 @@ export default function StaffDashboard() {
       setDashboardData(response.data.data);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
+      toast.error(error.response?.data?.message || 'Failed to load dashboard data');
     } finally {
       setLoading(false);
     }

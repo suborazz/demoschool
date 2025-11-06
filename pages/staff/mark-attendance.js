@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import DashboardLayout from '../../components/DashboardLayout';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 import { 
   FaUserCheck, FaCalendarAlt, FaCheckCircle, FaTimesCircle,
   FaSpinner, FaUsers, FaChalkboard
@@ -24,12 +25,14 @@ export default function MarkAttendance() {
     if (token) {
       fetchMyClasses();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   useEffect(() => {
     if (selectedClass) {
       fetchStudents();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedClass]);
 
   const fetchMyClasses = async () => {
@@ -52,9 +55,15 @@ export default function MarkAttendance() {
       });
       
       setMyClasses(uniqueClasses);
+      
+      if (uniqueClasses.length === 0) {
+        toast('No classes assigned to you', {
+          icon: 'ℹ️',
+        });
+      }
     } catch (error) {
       console.error('Error fetching classes:', error);
-      setError('Failed to load your classes');
+      toast.error('Failed to load your classes');
     } finally {
       setLoading(false);
     }
@@ -73,6 +82,12 @@ export default function MarkAttendance() {
       
       setStudents(filtered);
       
+      if (filtered.length === 0) {
+        toast('No students found in this class', {
+          icon: 'ℹ️',
+        });
+      }
+      
       // Initialize attendance
       const initialAttendance = {};
       filtered.forEach(student => {
@@ -81,6 +96,7 @@ export default function MarkAttendance() {
       setAttendance(initialAttendance);
     } catch (error) {
       console.error('Error fetching students:', error);
+      toast.error('Failed to load students');
     }
   };
 
@@ -119,13 +135,11 @@ export default function MarkAttendance() {
     // Validate
     const validationErrors = validateAttendance();
     if (validationErrors.length > 0) {
-      setError(validationErrors.join('. '));
-      setTimeout(() => setError(''), 5000);
+      toast.error(validationErrors.join('. '));
       return;
     }
 
     setSubmitting(true);
-    setError('');
 
     try {
       const attendanceRecords = Object.entries(attendance).map(([studentId, status]) => ({
@@ -137,7 +151,7 @@ export default function MarkAttendance() {
       const classId = students[0]?.class?._id;
 
       if (!classId) {
-        setError('Unable to determine class ID. Please try again.');
+        toast.error('Unable to determine class ID. Please try again.');
         setSubmitting(false);
         return;
       }
@@ -150,18 +164,15 @@ export default function MarkAttendance() {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      setSuccess('Attendance marked successfully for ' + students.length + ' students!');
+      toast.success(`Attendance marked successfully for ${students.length} students!`);
       
       // Reset selections
       setSelectedClass('');
       setStudents([]);
       setAttendance({});
-      
-      setTimeout(() => setSuccess(''), 5000);
     } catch (error) {
       console.error('Error marking attendance:', error);
-      setError(error.response?.data?.message || 'Failed to mark attendance');
-      setTimeout(() => setError(''), 5000);
+      toast.error(error.response?.data?.message || 'Failed to mark attendance');
     } finally {
       setSubmitting(false);
     }

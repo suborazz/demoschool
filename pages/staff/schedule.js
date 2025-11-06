@@ -14,6 +14,7 @@ export default function Schedule() {
     if (token) {
       fetchSchedule();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   const fetchSchedule = async () => {

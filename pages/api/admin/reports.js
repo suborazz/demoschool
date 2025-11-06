@@ -37,13 +37,45 @@ export default async function handler(req, res) {
       return res.status(403).json({ success: false, message: 'Access denied. Admin only.' });
     }
 
+    // Get date range from query params
+    const { dateRange = 'month', startDate, endDate } = req.query;
+    
+    // Calculate date range
+    let dateFilter = {};
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    if (startDate && endDate) {
+      dateFilter = {
+        $gte: new Date(startDate),
+        $lt: new Date(new Date(endDate).setHours(23, 59, 59, 999))
+      };
+    } else {
+      const rangeStart = new Date(today);
+      switch (dateRange) {
+        case 'today':
+          rangeStart.setHours(0, 0, 0, 0);
+          break;
+        case 'week':
+          rangeStart.setDate(rangeStart.getDate() - 7);
+          break;
+        case 'month':
+          rangeStart.setMonth(rangeStart.getMonth() - 1);
+          break;
+        case 'year':
+          rangeStart.setFullYear(rangeStart.getFullYear() - 1);
+          break;
+        default:
+          rangeStart.setMonth(rangeStart.getMonth() - 1);
+      }
+      dateFilter = { $gte: rangeStart };
+    }
+
     // Student Report
     const totalStudents = await Student.countDocuments();
     const activeStudents = await Student.countDocuments({ status: 'active' });
 
     // Attendance Report
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
@@ -56,13 +88,27 @@ export default async function handler(req, res) {
       ? ((presentStudentsToday / totalStudents) * 100).toFixed(1) 
       : 0;
 
-    // Fee Report
-    const totalFeesCollected = await Fee.aggregate([
+    // Fee Report (with date filtering for paid fees)
+    const feePipeline = [
       { $group: { _id: null, total: { $sum: '$amountPaid' } } }
-    ]);
+    ];
+    
+    // Add date filter for paid fees if applicable
+    const paidFeePipeline = [
+      { 
+        $match: { 
+          paymentStatus: 'paid',
+          ...(Object.keys(dateFilter).length > 0 && { paymentDate: dateFilter })
+        } 
+      },
+      { $group: { _id: null, total: { $sum: '$amount' } } }
+    ];
+    
+    const totalFeesCollected = await Fee.aggregate(paidFeePipeline);
     const feesCollected = totalFeesCollected.length > 0 ? totalFeesCollected[0].total : 0;
 
     const totalFeesPending = await Fee.aggregate([
+      { $match: { paymentStatus: { $ne: 'paid' } } },
       { $group: { _id: null, total: { $sum: '$amountPending' } } }
     ]);
     const feesPending = totalFeesPending.length > 0 ? totalFeesPending[0].total : 0;

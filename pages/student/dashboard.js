@@ -22,6 +22,7 @@ export default function StudentDashboard() {
     if (token) {
       fetchDashboardData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   const fetchDashboardData = async () => {

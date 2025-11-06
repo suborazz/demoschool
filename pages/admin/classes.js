@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 import DashboardLayout from '../../components/DashboardLayout';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import { 
@@ -38,7 +39,7 @@ export default function ClassesManagement() {
       setClasses(response.data.data || []);
     } catch (error) {
       console.error('Error fetching classes:', error);
-      setError(error.response?.data?.message || 'Failed to load classes');
+      toast.error(error.response?.data?.message || 'Failed to load classes');
     } finally {
       setLoading(false);
     }
@@ -118,7 +119,7 @@ export default function ClassesManagement() {
     // Validate form
     const validationErrors = validateForm();
     if (validationErrors.length > 0) {
-      setError(validationErrors.join('. '));
+      toast.error(validationErrors.join('. '));
       setSubmitting(false);
       return;
     }
@@ -131,15 +132,13 @@ export default function ClassesManagement() {
       });
 
       console.log('Class created:', response.data);
-      setSuccess('Class added successfully!');
+      toast.success('Class added successfully!');
       setShowModal(false);
       resetForm();
       fetchClasses();
-      
-      setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
       console.error('Error adding class:', error);
-      setError(error.response?.data?.message || 'Failed to add class');
+      toast.error(error.response?.data?.message || 'Failed to add class');
     } finally {
       setSubmitting(false);
     }
@@ -153,7 +152,7 @@ export default function ClassesManagement() {
     // Validate form
     const validationErrors = validateForm();
     if (validationErrors.length > 0) {
-      setError(validationErrors.join('. '));
+      toast.error(validationErrors.join('. '));
       setSubmitting(false);
       return;
     }
@@ -167,16 +166,14 @@ export default function ClassesManagement() {
       });
 
       console.log('Class updated:', response.data);
-      setSuccess('Class updated successfully!');
+      toast.success('Class updated successfully!');
       setShowEditModal(false);
       setEditingClass(null);
       resetForm();
       fetchClasses();
-      
-      setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
       console.error('Error updating class:', error);
-      setError(error.response?.data?.message || 'Failed to update class');
+      toast.error(error.response?.data?.message || 'Failed to update class');
     } finally {
       setSubmitting(false);
     }
@@ -190,13 +187,11 @@ export default function ClassesManagement() {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      setSuccess('Class deleted successfully!');
+      toast.success('Class deleted successfully!');
       fetchClasses();
-      setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
       console.error('Error deleting class:', error);
-      setError(error.response?.data?.message || 'Failed to delete class');
-      setTimeout(() => setError(''), 5000);
+      toast.error(error.response?.data?.message || 'Failed to delete class');
     }
   };
 

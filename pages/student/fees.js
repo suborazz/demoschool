@@ -14,6 +14,7 @@ export default function StudentFees() {
     if (token) {
       fetchFees();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   const fetchFees = async () => {

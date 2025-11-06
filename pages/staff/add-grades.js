@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import DashboardLayout from '../../components/DashboardLayout';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 import { 
   FaChartLine, FaPlus, FaTimes, FaSave, FaSpinner, FaGraduationCap
 } from 'react-icons/fa';
@@ -35,6 +36,7 @@ export default function AddGrades() {
       fetchGrades();
       fetchMyData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   const fetchGrades = async () => {
@@ -46,6 +48,7 @@ export default function AddGrades() {
       setGrades(response.data.data || []);
     } catch (error) {
       console.error('Error fetching grades:', error);
+      toast.error('Failed to load grades');
     } finally {
       setLoading(false);
     }
@@ -72,6 +75,7 @@ export default function AddGrades() {
       setSubjects(uniqueSubjects.map((name, idx) => ({ _id: `sub${idx}`, name })));
     } catch (error) {
       console.error('Error fetching data:', error);
+      toast.error('Failed to load classes and students');
     }
   };
 
@@ -135,7 +139,7 @@ export default function AddGrades() {
     // Validate form
     const validationErrors = validateForm();
     if (validationErrors.length > 0) {
-      setError(validationErrors.join('. '));
+      toast.error(validationErrors.join('. '));
       setSubmitting(false);
       return;
     }
@@ -146,7 +150,7 @@ export default function AddGrades() {
       const classId = student?.class?._id;
 
       if (!classId) {
-        setError('Student must be enrolled in a class');
+        toast.error('Student must be enrolled in a class');
         setSubmitting(false);
         return;
       }
@@ -160,14 +164,13 @@ export default function AddGrades() {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      setSuccess('Grade added successfully!');
+      toast.success('Grade added successfully!');
       setShowModal(false);
       resetForm();
       fetchGrades();
-      setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
       console.error('Error adding grade:', error);
-      setError(error.response?.data?.message || 'Failed to add grade');
+      toast.error(error.response?.data?.message || 'Failed to add grade');
     } finally {
       setSubmitting(false);
     }

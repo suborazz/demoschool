@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import DashboardLayout from '../../components/DashboardLayout';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 import { 
   FaUserGraduate, FaPlus, FaTimes, FaSearch, FaEdit, FaTrash,
   FaUser, FaEnvelope, FaPhone, FaBirthdayCake, FaVenusMars,
@@ -137,7 +138,7 @@ export default function StudentManagement() {
         }
       }
       
-      setError(error.response?.data?.message || 'Failed to load students');
+      toast.error(error.response?.data?.message || 'Failed to load students');
     } finally {
       setLoading(false);
     }
@@ -157,6 +158,7 @@ export default function StudentManagement() {
       setClasses(Array.isArray(classesData) ? classesData : []);
     } catch (error) {
       console.error('Error fetching classes:', error);
+      toast.error('Failed to load classes');
       setClasses([]); // Set to empty array on error
     }
   };
@@ -323,7 +325,7 @@ export default function StudentManagement() {
       if (Object.keys(errors).length > 0) {
         setFieldErrors(errors);
         const firstError = Object.values(errors)[0];
-        setError(firstError);
+        toast.error(firstError);
         setSubmitting(false);
         window.scrollTo({ top: 0, behavior: 'smooth' });
         return;
@@ -357,15 +359,13 @@ export default function StudentManagement() {
         setShowCredentials(true);
       }
 
-      setSuccess(`Student added successfully! Admission Number: ${response.data.student.admissionNumber}`);
+      toast.success(`Student added successfully! Admission Number: ${response.data.student.admissionNumber}`);
       setShowModal(false);
       resetForm();
       fetchStudents(); // Refresh list
-      
-      setTimeout(() => setSuccess(''), 5000);
     } catch (error) {
       console.error('Error adding student:', error);
-      setError(error.response?.data?.message || 'Failed to add student');
+      toast.error(error.response?.data?.message || 'Failed to add student');
     } finally {
       setSubmitting(false);
     }
@@ -390,16 +390,14 @@ export default function StudentManagement() {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      setSuccess('Student updated successfully!');
+      toast.success('Student updated successfully!');
       setShowEditModal(false);
       setEditingStudent(null);
       resetForm();
       fetchStudents();
-      
-      setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
       console.error('Error updating student:', error);
-      setError(error.response?.data?.message || 'Failed to update student');
+      toast.error(error.response?.data?.message || 'Failed to update student');
     } finally {
       setSubmitting(false);
     }
@@ -413,12 +411,11 @@ export default function StudentManagement() {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      setSuccess('Student deleted successfully!');
+      toast.success('Student deleted successfully!');
       fetchStudents();
-      setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
       console.error('Error deleting student:', error);
-      setError(error.response?.data?.message || 'Failed to delete student');
+      toast.error(error.response?.data?.message || 'Failed to delete student');
     }
   };
 

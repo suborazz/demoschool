@@ -14,6 +14,7 @@ export default function Grades() {
     if (token) {
       fetchGrades();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   const fetchGrades = async () => {

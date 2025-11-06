@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import DashboardLayout from '../../components/DashboardLayout';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 import { 
   FaChalkboardTeacher, FaPlus, FaSearch, FaEdit, FaTrash, FaUsers,
   FaUser, FaEnvelope, FaPhone, FaIdCard, FaSchool, FaSpinner, FaTimes,
@@ -130,7 +131,7 @@ export default function StaffManagement() {
         }
       }
       
-      setError(error.response?.data?.message || 'Failed to load staff');
+      toast.error(error.response?.data?.message || 'Failed to load staff');
     } finally {
       setLoading(false);
     }
@@ -246,15 +247,13 @@ export default function StaffManagement() {
         setShowCredentials(true);
       }
 
-      setSuccess('Staff member added successfully!');
+      toast.success('Staff member added successfully!');
       setShowModal(false);
       resetForm();
       fetchStaff();
-      
-      setTimeout(() => setSuccess(''), 5000);
     } catch (error) {
       console.error('Error adding staff:', error);
-      setError(error.response?.data?.message || 'Failed to add staff member');
+      toast.error(error.response?.data?.message || 'Failed to add staff member');
     } finally {
       setSubmitting(false);
     }
@@ -336,7 +335,7 @@ export default function StaffManagement() {
     // Validate form
     const validationErrors = validateForm();
     if (validationErrors.length > 0) {
-      setError(validationErrors.join('. '));
+      toast.error(validationErrors.join('. '));
       setSubmitting(false);
       return;
     }
@@ -350,17 +349,15 @@ export default function StaffManagement() {
 
       console.log('Update response:', response.data);
 
-      setSuccess('Staff member updated successfully!');
+      toast.success('Staff member updated successfully!');
       setShowEditModal(false);
       setEditingStaff(null);
       resetForm();
       fetchStaff();
-      
-      setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
       console.error('Error updating staff:', error);
       console.error('Error response:', error.response?.data);
-      setError(error.response?.data?.message || 'Failed to update staff member');
+      toast.error(error.response?.data?.message || 'Failed to update staff member');
     } finally {
       setSubmitting(false);
     }
@@ -374,12 +371,11 @@ export default function StaffManagement() {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      setSuccess('Staff member deleted successfully!');
+      toast.success('Staff member deleted successfully!');
       fetchStaff();
-      setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
       console.error('Error deleting staff:', error);
-      setError(error.response?.data?.message || 'Failed to delete staff member');
+      toast.error(error.response?.data?.message || 'Failed to delete staff member');
     }
   };
 

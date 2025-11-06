@@ -43,12 +43,18 @@ const lmsContentSchema = new mongoose.Schema({
   },
   class: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Class',
+    ref: 'Class'
+  },
+  classId: {
+    type: String,
     required: true
   },
   subject: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Subject',
+    ref: 'Subject'
+  },
+  subjectName: {
+    type: String,
     required: true
   },
   uploadedBy: {

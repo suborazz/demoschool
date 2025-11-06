@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import DashboardLayout from '../../components/DashboardLayout';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 import { 
   FaCalendarAlt, FaPlus, FaBell, FaGraduationCap, FaUsers, FaBook,
   FaEdit, FaTrash, FaTimes, FaSave, FaSpinner, FaClock
@@ -19,6 +20,7 @@ export default function Calendar() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
+  const [timeFilter, setTimeFilter] = useState('today'); // New state for time filter
 
   const [formData, setFormData] = useState({
     title: '',
@@ -42,6 +44,7 @@ export default function Calendar() {
       setEvents(response.data.data || []);
     } catch (error) {
       console.error('Error fetching events:', error);
+      toast.error('Failed to load events');
     } finally {
       setLoading(false);
     }
@@ -109,7 +112,7 @@ export default function Calendar() {
 
     const validationErrors = validateForm();
     if (validationErrors.length > 0) {
-      setError(validationErrors.join('. '));
+      toast.error(validationErrors.join('. '));
       setSubmitting(false);
       return;
     }
@@ -119,15 +122,13 @@ export default function Calendar() {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      setSuccess('Event created successfully!');
+      toast.success('Event created successfully!');
       setShowModal(false);
       resetForm();
       fetchEvents();
-      
-      setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
       console.error('Error creating event:', error);
-      setError(error.response?.data?.message || 'Failed to create event');
+      toast.error(error.response?.data?.message || 'Failed to create event');
     } finally {
       setSubmitting(false);
     }
@@ -140,7 +141,7 @@ export default function Calendar() {
 
     const validationErrors = validateForm();
     if (validationErrors.length > 0) {
-      setError(validationErrors.join('. '));
+      toast.error(validationErrors.join('. '));
       setSubmitting(false);
       return;
     }
@@ -150,16 +151,14 @@ export default function Calendar() {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      setSuccess('Event updated successfully!');
+      toast.success('Event updated successfully!');
       setShowEditModal(false);
       setEditingEvent(null);
       resetForm();
       fetchEvents();
-      
-      setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
       console.error('Error updating event:', error);
-      setError(error.response?.data?.message || 'Failed to update event');
+      toast.error(error.response?.data?.message || 'Failed to update event');
     } finally {
       setSubmitting(false);
     }
@@ -173,12 +172,11 @@ export default function Calendar() {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      setSuccess('Event deleted successfully!');
+      toast.success('Event deleted successfully!');
       fetchEvents();
-      setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
       console.error('Error deleting event:', error);
-      setError(error.response?.data?.message || 'Failed to delete event');
+      toast.error(error.response?.data?.message || 'Failed to delete event');
     }
   };
 
@@ -244,6 +242,46 @@ export default function Calendar() {
     return icons[type] || FaCalendarAlt;
   };
 
+  // Filter events based on selected time period
+  const getFilteredEvents = () => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    return events.filter(event => {
+      const eventStart = new Date(event.startDate);
+      const eventEnd = new Date(event.endDate);
+      
+      switch(timeFilter) {
+        case 'today':
+          // Events that occur today
+          return eventStart <= today && eventEnd >= today;
+          
+        case 'week':
+          // Events within the next 7 days
+          const weekEnd = new Date(today);
+          weekEnd.setDate(weekEnd.getDate() + 7);
+          return eventStart <= weekEnd && eventEnd >= today;
+          
+        case 'month':
+          // Events within this month
+          const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+          const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+          return (eventStart <= monthEnd && eventEnd >= monthStart);
+          
+        case 'year':
+          // Events within this year
+          const yearStart = new Date(now.getFullYear(), 0, 1);
+          const yearEnd = new Date(now.getFullYear(), 11, 31);
+          return (eventStart <= yearEnd && eventEnd >= yearStart);
+          
+        default:
+          return true;
+      }
+    });
+  };
+
+  const filteredEvents = getFilteredEvents();
+
   if (loading) {
     return (
       <ProtectedRoute allowedRoles={['admin']}>
@@ -303,23 +341,97 @@ export default function Calendar() {
             </div>
           )}
 
+          {/* Time Filter Section */}
+          <div className="bg-white rounded-2xl shadow-lg p-6">
+            <div>
+              <h2 className="text-3xl sm:text-4xl font-black bg-gradient-to-r from-blue-600 via-purple-600 to-pink-500 bg-clip-text text-transparent mb-2">
+                Admin Dashboard
+              </h2>
+              <p className="text-gray-600 text-sm sm:text-base mb-6">
+                Welcome back! Here&apos;s what&apos;s happening today.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={() => setTimeFilter('today')}
+                  className={`px-6 py-2.5 rounded-full font-bold transition-all transform hover:scale-105 ${
+                    timeFilter === 'today'
+                      ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg'
+                      : 'bg-white text-gray-700 border-2 border-gray-300 hover:border-purple-400'
+                  }`}
+                >
+                  Today
+                </button>
+                <button
+                  onClick={() => setTimeFilter('week')}
+                  className={`px-6 py-2.5 rounded-full font-bold transition-all transform hover:scale-105 ${
+                    timeFilter === 'week'
+                      ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg'
+                      : 'bg-white text-gray-700 border-2 border-gray-300 hover:border-purple-400'
+                  }`}
+                >
+                  Week
+                </button>
+                <button
+                  onClick={() => setTimeFilter('month')}
+                  className={`px-6 py-2.5 rounded-full font-bold transition-all transform hover:scale-105 ${
+                    timeFilter === 'month'
+                      ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg'
+                      : 'bg-white text-gray-700 border-2 border-gray-300 hover:border-purple-400'
+                  }`}
+                >
+                  Month
+                </button>
+                <button
+                  onClick={() => setTimeFilter('year')}
+                  className={`px-6 py-2.5 rounded-full font-bold transition-all transform hover:scale-105 ${
+                    timeFilter === 'year'
+                      ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg'
+                      : 'bg-white text-gray-700 border-2 border-gray-300 hover:border-purple-400'
+                  }`}
+                >
+                  Year
+                </button>
+              </div>
+            </div>
+          </div>
+
           {/* Events List */}
-          {events.length === 0 ? (
+          {filteredEvents.length === 0 ? (
             <div className="bg-white rounded-2xl shadow-2xl p-12 text-center">
               <FaCalendarAlt className="text-6xl text-gray-300 mx-auto mb-4" />
               <h3 className="text-2xl font-bold text-gray-900 mb-2">No Events Found</h3>
-              <p className="text-gray-600 mb-6">Start by adding your first event</p>
+              <p className="text-gray-600 mb-6">
+                {events.length === 0 
+                  ? 'Start by adding your first event' 
+                  : `No events scheduled for this ${timeFilter === 'today' ? 'day' : timeFilter}`
+                }
+              </p>
               <button
                 onClick={() => setShowModal(true)}
                 className="inline-flex items-center gap-2 bg-gradient-to-r from-cyan-600 to-blue-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
               >
                 <FaPlus />
-                Add First Event
+                {events.length === 0 ? 'Add First Event' : 'Add New Event'}
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {events.map((event) => {
+            <div>
+              <div className="mb-4 flex items-center justify-between">
+                <p className="text-gray-600 font-semibold">
+                  Showing <span className="text-cyan-600 font-bold">{filteredEvents.length}</span> {filteredEvents.length === 1 ? 'event' : 'events'}
+                  {timeFilter === 'today' && ' today'}
+                  {timeFilter === 'week' && ' this week'}
+                  {timeFilter === 'month' && ' this month'}
+                  {timeFilter === 'year' && ' this year'}
+                </p>
+                {filteredEvents.length < events.length && (
+                  <p className="text-sm text-gray-500">
+                    ({events.length} total events)
+                  </p>
+                )}
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredEvents.map((event) => {
                 const EventIcon = getEventIcon(event.eventType);
                 return (
                   <div
@@ -370,6 +482,7 @@ export default function Calendar() {
                   </div>
                 );
               })}
+              </div>
             </div>
           )}
         </div>
