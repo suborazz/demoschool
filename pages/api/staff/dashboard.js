@@ -1,5 +1,6 @@
 import connectDB from '../../../lib/mongodb';
 import Staff from '../../../models/Staff';
+import Class from '../../../models/Class';
 import Student from '../../../models/Student';
 import Grade from '../../../models/Grade';
 import AttendanceStaff from '../../../models/AttendanceStaff';
@@ -43,10 +44,20 @@ export default async function handler(req, res) {
       return res.status(404).json({ success: false, message: 'Staff profile not found' });
     }
 
-    // Get total students taught by this staff (from their classes)
-    const classIds = staff.classes.map(c => c.class?._id).filter(Boolean);
+    // Get classes from both sources:
+    // 1. Staff's classes array
+    const classIdsFromStaff = staff.classes.map(c => c.class?._id).filter(Boolean);
+    
+    // 2. Classes where this staff is assigned as classTeacher
+    const classesAsTeacher = await Class.find({ classTeacher: staff._id });
+    const classIdsFromTeacher = classesAsTeacher.map(c => c._id);
+    
+    // Combine and deduplicate
+    const allClassIds = [...new Set([...classIdsFromStaff, ...classIdsFromTeacher])];
+    
+    // Get total students taught by this staff
     const totalStudents = await Student.countDocuments({ 
-      class: { $in: classIds } 
+      class: { $in: allClassIds } 
     });
 
     // Get pending grades to review
@@ -69,8 +80,8 @@ export default async function handler(req, res) {
     const totalDays = attendanceThisMonth.length;
     const attendanceRate = totalDays > 0 ? ((presentDays / totalDays) * 100).toFixed(0) : 0;
 
-    // Get today's schedule (from staff's assigned classes)
-    const todaySchedule = staff.classes
+    // Get today's schedule (from all assigned classes)
+    const todayScheduleFromStaff = staff.classes
       .filter(c => c.class)
       .map(c => ({
         className: c.class.name,
@@ -78,6 +89,20 @@ export default async function handler(req, res) {
         grade: c.class.grade,
         section: c.class.section
       }));
+    
+    const todayScheduleFromTeacher = classesAsTeacher.map(c => ({
+      className: c.name,
+      subject: staff.subjects[0]?.name || 'Class Teacher',
+      grade: c.grade,
+      section: c.section
+    }));
+    
+    // Combine schedules and deduplicate based on className
+    const todayScheduleMap = new Map();
+    [...todayScheduleFromStaff, ...todayScheduleFromTeacher].forEach(item => {
+      todayScheduleMap.set(item.className, item);
+    });
+    const todaySchedule = Array.from(todayScheduleMap.values());
 
     res.json({
       success: true,
@@ -89,7 +114,7 @@ export default async function handler(req, res) {
           designation: staff.designation
         },
         stats: {
-          totalClasses: staff.classes.length,
+          totalClasses: allClassIds.length,
           totalStudents,
           pendingGrades,
           attendanceRate: `${attendanceRate}%`

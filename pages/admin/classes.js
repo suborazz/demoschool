@@ -12,6 +12,7 @@ import {
 export default function ClassesManagement() {
   const { token } = useAuth();
   const [classes, setClasses] = useState([]);
+  const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -27,7 +28,8 @@ export default function ClassesManagement() {
     section: 'A',
     academicYear: new Date().getFullYear().toString(),
     capacity: 40,
-    room: ''
+    room: '',
+    classTeacher: ''
   });
 
   const fetchClasses = useCallback(async () => {
@@ -45,12 +47,27 @@ export default function ClassesManagement() {
     }
   }, [token]);
 
-  // Fetch classes
+  // Fetch staff list
+  const fetchStaff = useCallback(async () => {
+    try {
+      const response = await axios.get('/api/admin/staff', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const staffData = response.data.data || response.data.staff || [];
+      setStaff(Array.isArray(staffData) ? staffData : []);
+    } catch (error) {
+      console.error('Error fetching staff:', error);
+      toast.error('Failed to load staff list');
+    }
+  }, [token]);
+
+  // Fetch classes and staff
   useEffect(() => {
     if (token) {
       fetchClasses();
+      fetchStaff();
     }
-  }, [token, fetchClasses]);
+  }, [token, fetchClasses, fetchStaff]);
 
   const validateField = (name, value) => {
     switch (name) {
@@ -203,7 +220,8 @@ export default function ClassesManagement() {
       section: cls.section || 'A',
       academicYear: cls.academicYear || new Date().getFullYear().toString(),
       capacity: cls.capacity || 40,
-      room: cls.room || ''
+      room: cls.room || '',
+      classTeacher: cls.classTeacher?._id || ''
     });
     setShowEditModal(true);
   };
@@ -215,7 +233,8 @@ export default function ClassesManagement() {
       section: 'A',
       academicYear: new Date().getFullYear().toString(),
       capacity: 40,
-      room: ''
+      room: '',
+      classTeacher: ''
     });
     setFieldErrors({});
     setError('');
@@ -379,6 +398,17 @@ export default function ClassesManagement() {
                         {cls.academicYear}
                       </span>
                     </div>
+                    {cls.classTeacher && (
+                      <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-200">
+                        <FaChalkboardTeacher className="text-indigo-600" />
+                        <div>
+                          <p className="text-xs text-gray-500 font-semibold">Class Teacher:</p>
+                          <p className="text-sm font-bold text-gray-900">
+                            {cls.classTeacher.user?.firstName} {cls.classTeacher.user?.lastName}
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -527,6 +557,28 @@ export default function ClassesManagement() {
                     />
                     <p className="text-xs text-gray-500 mt-1">Default: Current year</p>
                   </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-bold text-gray-700 mb-2">
+                      <FaChalkboardTeacher className="inline mr-2 text-indigo-600" />
+                      Class Teacher (Optional)
+                    </label>
+                    <select
+                      name="classTeacher"
+                      value={formData.classTeacher}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-200 focus:outline-none font-semibold"
+                    >
+                      <option value="">Select Teacher</option>
+                      {staff.map((teacher) => (
+                        <option key={teacher._id} value={teacher._id}>
+                          {teacher.user?.firstName} {teacher.user?.lastName} - {teacher.designation} ({teacher.employeeId})
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      💡 Assign a class teacher who will be the primary contact for this class
+                    </p>
+                  </div>
                 </div>
 
                 <div className="flex justify-end gap-4 mt-6">
@@ -670,6 +722,28 @@ export default function ClassesManagement() {
                       onChange={handleInputChange}
                       className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-200 focus:outline-none"
                     />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-bold text-gray-700 mb-2">
+                      <FaChalkboardTeacher className="inline mr-2 text-blue-600" />
+                      Class Teacher (Optional)
+                    </label>
+                    <select
+                      name="classTeacher"
+                      value={formData.classTeacher}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-200 focus:outline-none font-semibold"
+                    >
+                      <option value="">Select Teacher</option>
+                      {staff.map((teacher) => (
+                        <option key={teacher._id} value={teacher._id}>
+                          {teacher.user?.firstName} {teacher.user?.lastName} - {teacher.designation} ({teacher.employeeId})
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      💡 Assign a class teacher who will be the primary contact for this class
+                    </p>
                   </div>
                 </div>
 

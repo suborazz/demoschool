@@ -71,7 +71,7 @@ export default function MarkAttendance() {
 
   const fetchStudents = async () => {
     try {
-      const response = await axios.get('/api/admin/students', {
+      const response = await axios.get('/api/staff/students', {
         headers: { Authorization: `Bearer ${token}` }
       });
       const allStudents = response.data.students || response.data.data || [];
@@ -172,7 +172,8 @@ export default function MarkAttendance() {
       setAttendance({});
     } catch (error) {
       console.error('Error marking attendance:', error);
-      toast.error(error.response?.data?.message || 'Failed to mark attendance');
+      const errorMessage = error.response?.data?.message || 'Failed to mark attendance';
+      toast.error(errorMessage);
     } finally {
       setSubmitting(false);
     }

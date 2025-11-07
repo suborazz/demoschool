@@ -73,10 +73,6 @@ export default async function handler(req, res) {
       if (!category) validationErrors.push('Category is required');
       if (!classId) validationErrors.push('Class is required');
       if (!subjectName || !subjectName.trim()) validationErrors.push('Subject is required');
-      
-      if (contentType === 'link' && (!externalLink || !externalLink.trim())) {
-        validationErrors.push('External link is required for link type');
-      }
 
       if (validationErrors.length > 0) {
         return res.status(400).json({
@@ -86,21 +82,29 @@ export default async function handler(req, res) {
       }
 
       // Create content
-      const newContent = await LMSContent.create({
+      const contentData = {
         title: title.trim(),
         description: description ? description.trim() : '',
         contentType,
         category,
-        class: classId, // Store class name for now (can be enhanced to use class ObjectId)
-        subject: subjectName, // Store subject name
         classId: classId,
         subjectName: subjectName,
-        externalLink: contentType === 'link' ? externalLink.trim() : '',
         tags: Array.isArray(tags) ? tags : [],
         uploadedBy: staff._id,
         isActive: true,
         publishDate: new Date()
-      });
+      };
+
+      // Add externalLink for link type
+      if (contentType === 'link') {
+        contentData.externalLink = externalLink.trim();
+      } else {
+        // For non-link types, provide a placeholder fileUrl
+        // In a real scenario, you'd upload the file and get the URL
+        contentData.fileUrl = externalLink && externalLink.trim() ? externalLink.trim() : 'pending-upload';
+      }
+
+      const newContent = await LMSContent.create(contentData);
 
       return res.status(201).json({
         success: true,

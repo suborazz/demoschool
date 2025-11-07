@@ -1,5 +1,6 @@
 import connectDB from '../../../lib/mongodb';
 import Grade from '../../../models/Grade';
+import Class from '../../../models/Class';
 import Staff from '../../../models/Staff';
 import Student from '../../../models/Student';
 import User from '../../../models/User';
@@ -40,10 +41,40 @@ export default async function handler(req, res) {
 
     // GET - Fetch grades
     if (req.method === 'GET') {
-      const grades = await Grade.find({
-        subject: { $in: staff.subjects.map(s => s._id) }
-      })
-        .populate('student')
+      // Get all classes this staff can access (from both sources)
+      const classIdsFromStaff = staff.classes && staff.classes.length > 0 
+        ? staff.classes.map(c => c.class?._id).filter(Boolean) 
+        : [];
+      
+      const classesAsTeacher = await Class.find({ classTeacher: staff._id });
+      const classIdsFromTeacher = classesAsTeacher.map(c => c._id);
+      
+      const allClassIds = [...new Set([...classIdsFromStaff, ...classIdsFromTeacher])];
+
+      // Fetch grades based on:
+      // 1. Subjects staff teaches (if any)
+      // 2. OR classes staff is assigned to (including as class teacher)
+      const query = {};
+      
+      if (staff.subjects && staff.subjects.length > 0) {
+        // If staff has subjects, fetch grades for those subjects
+        query.subject = { $in: staff.subjects.map(s => s._id) };
+      } else if (allClassIds.length > 0) {
+        // If no subjects but has classes, fetch all grades for those classes
+        query.class = { $in: allClassIds };
+      } else {
+        // If neither subjects nor classes, return empty array
+        return res.status(200).json({
+          success: true,
+          data: []
+        });
+      }
+
+      const grades = await Grade.find(query)
+        .populate({
+          path: 'student',
+          populate: { path: 'user', select: 'firstName lastName email' }
+        })
         .populate('subject')
         .populate('class')
         .sort({ createdAt: -1 });
@@ -80,40 +111,44 @@ export default async function handler(req, res) {
         return res.status(400).json({ success: false, message: validationErrors.join('. ') });
       }
 
-      // Check if staff teaches this subject
-      const teachesSubject = staff.subjects.some(s => s._id.toString() === subjectId);
-      if (!teachesSubject) {
-        return res.status(403).json({ success: false, message: 'You are not assigned to this subject' });
+      // Check if staff can add grades for this class
+      // Allow if: 1) Staff teaches the subject, OR 2) Staff is class teacher for this class
+      const teachesSubject = staff.subjects && staff.subjects.some(s => s._id.toString() === subjectId);
+      const teachesClassFromStaff = staff.classes && staff.classes.some(c => c.class?._id?.toString() === classId);
+      const isClassTeacher = await Class.findOne({ _id: classId, classTeacher: staff._id });
+      
+      if (!teachesSubject && !teachesClassFromStaff && !isClassTeacher) {
+        return res.status(403).json({ 
+          success: false, 
+          message: 'You are not assigned to this subject or class. Please contact admin.' 
+        });
       }
 
-      // Calculate percentage
-      const percentage = ((marksObtained / maxMarks) * 100).toFixed(2);
-      
-      // Determine grade
-      let grade = 'F';
-      if (percentage >= 90) grade = 'A+';
-      else if (percentage >= 80) grade = 'A';
-      else if (percentage >= 70) grade = 'B';
-      else if (percentage >= 60) grade = 'C';
-      else if (percentage >= 50) grade = 'D';
+      // Get subject details for passing marks
+      const Subject = require('../../../models/Subject').default;
+      const subjectDoc = await Subject.findById(subjectId);
+      const passingMarks = subjectDoc?.passingMarks || Math.round(maxMarks * 0.33);
 
-      // Create grade
+      // Create grade (Grade model will calculate percentage, grade, and isPassed in pre-save hook)
       const newGrade = await Grade.create({
         student: studentId,
         class: classId,
         subject: subjectId,
         examType,
-        maxMarks,
+        totalMarks: maxMarks,
         marksObtained,
-        percentage,
-        grade,
+        passingMarks,
+        examDate: new Date(),
         remarks: remarks || '',
         academicYear: new Date().getFullYear().toString(),
-        addedBy: userId
+        enteredBy: staff._id
       });
 
       const populatedGrade = await Grade.findById(newGrade._id)
-        .populate('student')
+        .populate({
+          path: 'student',
+          populate: { path: 'user', select: 'firstName lastName email' }
+        })
         .populate('subject')
         .populate('class');
 

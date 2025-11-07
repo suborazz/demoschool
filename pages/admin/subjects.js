@@ -1,0 +1,595 @@
+import { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '../../context/AuthContext';
+import DashboardLayout from '../../components/DashboardLayout';
+import ProtectedRoute from '../../components/ProtectedRoute';
+import axios from 'axios';
+import toast from 'react-hot-toast';
+import { 
+  FaBook, FaPlus, FaEdit, FaTrash, FaTimes, FaSave, FaSpinner 
+} from 'react-icons/fa';
+
+export default function SubjectsManagement() {
+  const { token } = useAuth();
+  const [subjects, setSubjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingSubject, setEditingSubject] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  
+  const [formData, setFormData] = useState({
+    name: '',
+    code: '',
+    description: '',
+    category: 'Core',
+    totalMarks: 100,
+    passingMarks: 33
+  });
+
+  const fetchSubjects = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get('/api/admin/subjects', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setSubjects(response.data.data || []);
+    } catch (error) {
+      console.error('Error fetching subjects:', error);
+      toast.error('Failed to load subjects');
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (token) {
+      fetchSubjects();
+    }
+  }, [token, fetchSubjects]);
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const validateForm = () => {
+    const errors = [];
+    if (!formData.name.trim()) errors.push('Subject name is required');
+    if (!formData.code.trim()) errors.push('Subject code is required');
+    if (formData.totalMarks <= 0) errors.push('Total marks must be greater than 0');
+    if (formData.passingMarks < 0) errors.push('Passing marks cannot be negative');
+    if (formData.passingMarks > formData.totalMarks) errors.push('Passing marks cannot exceed total marks');
+    return errors;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    const errors = validateForm();
+    if (errors.length > 0) {
+      toast.error(errors.join('. '));
+      return;
+    }
+
+    setSubmitting(true);
+
+    try {
+      await axios.post('/api/admin/subjects', formData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      toast.success('Subject created successfully!');
+      setShowModal(false);
+      resetForm();
+      fetchSubjects();
+    } catch (error) {
+      console.error('Error creating subject:', error);
+      toast.error(error.response?.data?.message || 'Failed to create subject');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleEdit = async (e) => {
+    e.preventDefault();
+    
+    const errors = validateForm();
+    if (errors.length > 0) {
+      toast.error(errors.join('. '));
+      return;
+    }
+
+    setSubmitting(true);
+
+    try {
+      await axios.put(`/api/admin/subjects/${editingSubject._id}`, formData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      toast.success('Subject updated successfully!');
+      setShowEditModal(false);
+      setEditingSubject(null);
+      resetForm();
+      fetchSubjects();
+    } catch (error) {
+      console.error('Error updating subject:', error);
+      toast.error(error.response?.data?.message || 'Failed to update subject');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (subjectId) => {
+    if (!confirm('Are you sure you want to delete this subject? This action cannot be undone.')) return;
+
+    try {
+      await axios.delete(`/api/admin/subjects/${subjectId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      toast.success('Subject deleted successfully!');
+      fetchSubjects();
+    } catch (error) {
+      console.error('Error deleting subject:', error);
+      toast.error(error.response?.data?.message || 'Failed to delete subject');
+    }
+  };
+
+  const openEditModal = (subject) => {
+    setEditingSubject(subject);
+    setFormData({
+      name: subject.name || '',
+      code: subject.code || '',
+      description: subject.description || '',
+      category: subject.category || 'Core',
+      totalMarks: subject.totalMarks || 100,
+      passingMarks: subject.passingMarks || 33
+    });
+    setShowEditModal(true);
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      code: '',
+      description: '',
+      category: 'Core',
+      totalMarks: 100,
+      passingMarks: 33
+    });
+  };
+
+  const categories = ['Core', 'Elective', 'Language', 'Science', 'Arts', 'Sports', 'Co-curricular'];
+
+  if (loading) {
+    return (
+      <ProtectedRoute allowedRoles={['admin']}>
+        <DashboardLayout>
+          <div className="flex items-center justify-center min-h-screen">
+            <div className="text-center">
+              <FaSpinner className="text-6xl text-indigo-600 animate-spin mx-auto mb-4" />
+              <p className="text-xl font-bold text-gray-600">Loading subjects...</p>
+            </div>
+          </div>
+        </DashboardLayout>
+      </ProtectedRoute>
+    );
+  }
+
+  return (
+    <ProtectedRoute allowedRoles={['admin']}>
+      <DashboardLayout>
+        <div className="space-y-6">
+          {/* Header */}
+          <div className="bg-white rounded-2xl shadow-2xl p-6 border-2 border-indigo-100">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-xl">
+                  <FaBook className="text-white text-3xl" />
+                </div>
+                <div>
+                  <h1 className="text-3xl sm:text-4xl font-black bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                    Subjects Management
+                  </h1>
+                  <p className="text-gray-600 font-semibold">Add and manage school subjects</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowModal(true)}
+                className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all"
+              >
+                <FaPlus />
+                Add Subject
+              </button>
+            </div>
+          </div>
+
+          {/* Stats */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl shadow-xl p-6 text-white">
+              <div className="flex items-center justify-between mb-2">
+                <FaBook className="text-3xl" />
+                <span className="text-3xl font-black">{subjects.length}</span>
+              </div>
+              <p className="font-bold">Total Subjects</p>
+            </div>
+            <div className="bg-gradient-to-br from-green-500 to-emerald-500 rounded-2xl shadow-xl p-6 text-white">
+              <div className="flex items-center justify-between mb-2">
+                <FaBook className="text-3xl" />
+                <span className="text-3xl font-black">{subjects.filter(s => s.isActive).length}</span>
+              </div>
+              <p className="font-bold">Active Subjects</p>
+            </div>
+            <div className="bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl shadow-xl p-6 text-white">
+              <div className="flex items-center justify-between mb-2">
+                <FaBook className="text-3xl" />
+                <span className="text-3xl font-black">{subjects.filter(s => !s.isActive).length}</span>
+              </div>
+              <p className="font-bold">Inactive Subjects</p>
+            </div>
+          </div>
+
+          {/* Subjects List */}
+          {subjects.length === 0 ? (
+            <div className="bg-white rounded-2xl shadow-2xl p-12 text-center">
+              <FaBook className="text-6xl text-gray-300 mx-auto mb-4" />
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">No Subjects Found</h3>
+              <p className="text-gray-600 mb-6">Start by adding your first subject</p>
+              <button
+                onClick={() => setShowModal(true)}
+                className="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all"
+              >
+                <FaPlus />
+                Add First Subject
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {subjects.map((subject) => (
+                <div key={subject._id} className="bg-white rounded-2xl shadow-2xl p-6 border-2 border-indigo-100 hover:border-indigo-300 hover:scale-105 transition-all">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <h3 className="text-2xl font-black text-gray-900">{subject.name}</h3>
+                        {!subject.isActive && (
+                          <span className="px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full font-bold">
+                            Inactive
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-600 font-semibold">Code: {subject.code}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => openEditModal(subject)}
+                        className="p-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-all"
+                      >
+                        <FaEdit />
+                      </button>
+                      <button 
+                        onClick={() => handleDelete(subject._id)}
+                        className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-all"
+                      >
+                        <FaTrash />
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {subject.description && (
+                    <p className="text-sm text-gray-600 mb-4">{subject.description}</p>
+                  )}
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-600 font-semibold">Category:</span>
+                      <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-lg text-sm font-bold">
+                        {subject.category}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-600 font-semibold">Total Marks:</span>
+                      <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-sm font-bold">
+                        {subject.totalMarks}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-600 font-semibold">Passing Marks:</span>
+                      <span className="px-3 py-1 bg-green-100 text-green-700 rounded-lg text-sm font-bold">
+                        {subject.passingMarks}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Add Subject Modal */}
+        {showModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full p-8 border-4 border-indigo-200">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-3xl font-black text-indigo-600">Add New Subject</h2>
+                <button
+                  onClick={() => { setShowModal(false); resetForm(); }}
+                  className="text-gray-400 hover:text-red-500 transition-colors"
+                >
+                  <FaTimes size={24} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">
+                      Subject Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-200 focus:outline-none"
+                      placeholder="e.g., Mathematics"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">
+                      Subject Code <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="code"
+                      value={formData.code}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-200 focus:outline-none uppercase"
+                      placeholder="e.g., MATH101"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Description</label>
+                  <textarea
+                    name="description"
+                    value={formData.description}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-200 focus:outline-none"
+                    rows="3"
+                    placeholder="Brief description of the subject"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">
+                      Category <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      name="category"
+                      value={formData.category}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-200 focus:outline-none"
+                      required
+                    >
+                      {categories.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">
+                      Total Marks <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      name="totalMarks"
+                      value={formData.totalMarks}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-200 focus:outline-none"
+                      min="1"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">
+                      Passing Marks <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      name="passingMarks"
+                      value={formData.passingMarks}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-200 focus:outline-none"
+                      min="0"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-4 mt-6">
+                  <button
+                    type="button"
+                    onClick={() => { setShowModal(false); resetForm(); }}
+                    className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-bold hover:bg-gray-50 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="flex items-center gap-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-3 rounded-xl font-bold shadow-xl hover:shadow-2xl disabled:opacity-50 transition-all"
+                  >
+                    {submitting ? (
+                      <>
+                        <FaSpinner className="animate-spin" />
+                        Creating...
+                      </>
+                    ) : (
+                      <>
+                        <FaSave />
+                        Create Subject
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Subject Modal */}
+        {showEditModal && editingSubject && (
+          <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full p-8 border-4 border-blue-200">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-3xl font-black text-blue-600">Edit Subject</h2>
+                <button
+                  onClick={() => {
+                    setShowEditModal(false);
+                    setEditingSubject(null);
+                    resetForm();
+                  }}
+                  className="text-gray-400 hover:text-red-500 transition-colors"
+                >
+                  <FaTimes size={24} />
+                </button>
+              </div>
+
+              <form onSubmit={handleEdit} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">
+                      Subject Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-200 focus:outline-none"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">
+                      Subject Code <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="code"
+                      value={formData.code}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-200 focus:outline-none uppercase"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Description</label>
+                  <textarea
+                    name="description"
+                    value={formData.description}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-200 focus:outline-none"
+                    rows="3"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">
+                      Category <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      name="category"
+                      value={formData.category}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-200 focus:outline-none"
+                      required
+                    >
+                      {categories.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">
+                      Total Marks <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      name="totalMarks"
+                      value={formData.totalMarks}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-200 focus:outline-none"
+                      min="1"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">
+                      Passing Marks <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      name="passingMarks"
+                      value={formData.passingMarks}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-200 focus:outline-none"
+                      min="0"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-4 mt-6">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowEditModal(false);
+                      setEditingSubject(null);
+                      resetForm();
+                    }}
+                    className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-bold hover:bg-gray-50 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="flex items-center gap-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-3 rounded-xl font-bold shadow-xl hover:shadow-2xl disabled:opacity-50 transition-all"
+                  >
+                    {submitting ? (
+                      <>
+                        <FaSpinner className="animate-spin" />
+                        Updating...
+                      </>
+                    ) : (
+                      <>
+                        <FaSave />
+                        Update Subject
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </DashboardLayout>
+    </ProtectedRoute>
+  );
+}
+
+

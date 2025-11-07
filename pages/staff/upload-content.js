@@ -30,6 +30,8 @@ export default function UploadContent() {
     externalLink: '',
     tags: ''
   });
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [uploadMethod, setUploadMethod] = useState('file'); // 'file' or 'link'
 
   const fetchMyClasses = useCallback(async () => {
     try {
@@ -90,11 +92,39 @@ export default function UploadContent() {
     if (!formData.classId) errors.push('Class is required');
     if (!formData.subjectName.trim()) errors.push('Subject is required');
     
-    if (formData.contentType === 'link') {
-      if (!formData.externalLink.trim()) errors.push('Link URL is required for link type');
-    }
-    
     return errors;
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Check file size (50MB limit)
+      if (file.size > 50 * 1024 * 1024) {
+        toast.error('File size must be less than 50MB');
+        return;
+      }
+      setSelectedFile(file);
+    }
+  };
+
+  const uploadFile = async () => {
+    if (!selectedFile) return null;
+
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+
+    try {
+      const response = await axios.post('/api/staff/upload-file', formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      return response.data.fileUrl;
+    } catch (error) {
+      console.error('File upload error:', error);
+      throw new Error('Failed to upload file');
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -106,14 +136,33 @@ export default function UploadContent() {
       return;
     }
 
+    // Validate upload method
+    if (uploadMethod === 'file' && !selectedFile) {
+      toast.error('Please select a file to upload');
+      return;
+    }
+    if (uploadMethod === 'link' && !formData.externalLink.trim()) {
+      toast.error('Please enter a link/URL');
+      return;
+    }
+
     setSubmitting(true);
 
     try {
+      let finalLink = formData.externalLink;
+
+      // Upload file if file method is selected
+      if (uploadMethod === 'file' && selectedFile) {
+        toast('Uploading file...', { icon: '📤' });
+        finalLink = await uploadFile();
+      }
+
       // Convert tags string to array
       const tagsArray = formData.tags ? formData.tags.split(',').map(t => t.trim()).filter(t => t) : [];
       
       await axios.post('/api/staff/lms-content', {
         ...formData,
+        externalLink: finalLink,
         tags: tagsArray
       }, {
         headers: { Authorization: `Bearer ${token}` }
@@ -158,6 +207,8 @@ export default function UploadContent() {
       externalLink: '',
       tags: ''
     });
+    setSelectedFile(null);
+    setUploadMethod('file');
   };
 
   const getContentIcon = (type) => {
@@ -373,16 +424,16 @@ export default function UploadContent() {
                         <span className="text-xs font-semibold">{new Date(content.createdAt).toLocaleDateString()}</span>
                       </div>
 
-                      {content.contentType === 'link' && content.externalLink && (
+                      {content.externalLink && (
                         <a
                           href={content.externalLink}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="mt-3 flex items-center gap-2 text-sm font-bold hover:underline"
+                          className="mt-3 flex items-center gap-2 text-sm font-bold hover:underline bg-white/20 px-3 py-2 rounded-lg backdrop-blur-sm"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <FaLink />
-                          Open Link
+                          {content.contentType === 'link' ? <FaLink /> : <FaDownload />}
+                          {content.contentType === 'link' ? 'Open Link' : 'View/Download'}
                         </a>
                       )}
                     </div>
@@ -517,11 +568,65 @@ export default function UploadContent() {
                   </div>
                 </div>
 
-                {/* External Link (if type is link) */}
-                {formData.contentType === 'link' && (
-                  <div>
+                {/* Upload Method Selection */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-bold text-gray-700 mb-3">
+                    How do you want to add content? <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex gap-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="uploadMethod"
+                        value="file"
+                        checked={uploadMethod === 'file'}
+                        onChange={(e) => setUploadMethod(e.target.value)}
+                        className="w-4 h-4 text-purple-600"
+                      />
+                      <span className="font-semibold">📤 Upload File from Computer</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="uploadMethod"
+                        value="link"
+                        checked={uploadMethod === 'link'}
+                        onChange={(e) => setUploadMethod(e.target.value)}
+                        className="w-4 h-4 text-purple-600"
+                      />
+                      <span className="font-semibold">🔗 Provide External Link</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* File Upload */}
+                {uploadMethod === 'file' && (
+                  <div className="md:col-span-2">
                     <label className="block text-sm font-bold text-gray-700 mb-2">
-                      External Link <span className="text-red-500">*</span>
+                      Select File <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="file"
+                      onChange={handleFileChange}
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-200 focus:outline-none"
+                      accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.jpg,.jpeg,.png,.mp4,.mp3,.zip"
+                    />
+                    {selectedFile && (
+                      <p className="text-sm text-green-600 mt-2 font-semibold">
+                        ✅ Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                      </p>
+                    )}
+                    <p className="text-xs text-gray-500 mt-1">
+                      Supported: PDF, DOC, PPT, Images, Videos, ZIP (Max 50MB)
+                    </p>
+                  </div>
+                )}
+
+                {/* External Link */}
+                {uploadMethod === 'link' && (
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-bold text-gray-700 mb-2">
+                      Content Link/URL <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="url"
@@ -529,10 +634,11 @@ export default function UploadContent() {
                       value={formData.externalLink}
                       onChange={handleInputChange}
                       className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-200 focus:outline-none"
-                      placeholder="https://example.com/video"
-                      required={formData.contentType === 'link'}
+                      placeholder="https://youtube.com/... or https://drive.google.com/..."
                     />
-                    <p className="text-xs text-gray-500 mt-1">Enter YouTube link, Google Drive link, etc.</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Enter URL to your content (YouTube, Google Drive, Dropbox, OneDrive, etc.)
+                    </p>
                   </div>
                 )}
 

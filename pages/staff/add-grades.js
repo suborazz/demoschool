@@ -63,16 +63,17 @@ export default function AddGrades() {
       const schedule = dashboardRes.data.data?.todaySchedule || [];
       setClasses(schedule);
 
-      // Fetch all students
-      const studentsRes = await axios.get('/api/admin/students', {
+      // Fetch students from your assigned classes
+      const studentsRes = await axios.get('/api/staff/students', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setStudents(studentsRes.data.students || studentsRes.data.data || []);
 
-      // Fetch subjects (would need subject API, for now use from schedule)
-      // For simplicity, extract unique subjects from schedule
-      const uniqueSubjects = [...new Set(schedule.map(s => s.subject))];
-      setSubjects(uniqueSubjects.map((name, idx) => ({ _id: `sub${idx}`, name })));
+      // Fetch subjects from API
+      const subjectsRes = await axios.get('/api/staff/subjects', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setSubjects(subjectsRes.data.subjects || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('Failed to load classes and students');
@@ -276,7 +277,7 @@ export default function AddGrades() {
                       <td className="px-6 py-4 font-bold">{grade.student?.user?.firstName} {grade.student?.user?.lastName}</td>
                       <td className="px-6 py-4">{grade.subject?.name}</td>
                       <td className="px-6 py-4">{grade.examType}</td>
-                      <td className="px-6 py-4">{grade.marksObtained}/{grade.maxMarks}</td>
+                      <td className="px-6 py-4">{grade.marksObtained}/{grade.totalMarks}</td>
                       <td className="px-6 py-4">
                         <span className="px-3 py-1 bg-green-100 text-green-700 rounded-lg font-bold">
                           {grade.grade}

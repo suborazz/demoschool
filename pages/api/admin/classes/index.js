@@ -32,7 +32,10 @@ export default async function handler(req, res) {
     // GET - Fetch all classes
     if (req.method === 'GET') {
       const classes = await Class.find()
-        .populate('classTeacher', 'firstName lastName')
+        .populate({
+          path: 'classTeacher',
+          populate: { path: 'user', select: 'firstName lastName email' }
+        })
         .sort({ grade: 1, name: 1 });
 
       // Get student count for each class
@@ -138,8 +141,27 @@ export default async function handler(req, res) {
 
       console.log('Class created successfully:', newClass);
 
+      // If class teacher is assigned, add this class to staff's classes array
+      if (classTeacher) {
+        await Staff.findByIdAndUpdate(
+          classTeacher,
+          {
+            $addToSet: {
+              classes: {
+                class: newClass._id,
+                section: newClass.section,
+                isClassTeacher: true
+              }
+            }
+          }
+        );
+      }
+
       const populatedClass = await Class.findById(newClass._id)
-        .populate('classTeacher', 'firstName lastName');
+        .populate({
+          path: 'classTeacher',
+          populate: { path: 'user', select: 'firstName lastName email' }
+        });
 
       return res.status(201).json({
         success: true,

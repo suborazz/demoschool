@@ -1,5 +1,6 @@
 import connectDB from '../../../lib/mongodb';
 import Staff from '../../../models/Staff';
+import Class from '../../../models/Class';
 import Student from '../../../models/Student';
 import AttendanceStudent from '../../../models/AttendanceStudent';
 import User from '../../../models/User';
@@ -50,10 +51,15 @@ export default async function handler(req, res) {
         return res.status(400).json({ success: false, message: 'Attendance records are required' });
       }
 
-      // Check if staff teaches this class
-      const teachesClass = staff.classes.some(c => c.class._id.toString() === classId);
-      if (!teachesClass) {
-        return res.status(403).json({ success: false, message: 'You are not assigned to this class' });
+      // Check if staff teaches this class (from both sources)
+      const teachesClassFromStaff = staff.classes.some(c => c.class?._id?.toString() === classId);
+      const classAsTeacher = await Class.findOne({ _id: classId, classTeacher: staff._id });
+      
+      if (!teachesClassFromStaff && !classAsTeacher) {
+        return res.status(403).json({ 
+          success: false, 
+          message: 'You are not assigned to this class. Please contact admin to assign you to this class.' 
+        });
       }
 
       const attendanceDate = new Date(date);
@@ -66,7 +72,10 @@ export default async function handler(req, res) {
       });
 
       if (existing) {
-        return res.status(400).json({ success: false, message: 'Attendance already marked for this class on this date' });
+        return res.status(400).json({ 
+          success: false, 
+          message: `Attendance already marked for this class on ${new Date(date).toLocaleDateString()}. Please choose a different date.` 
+        });
       }
 
       // Create attendance records

@@ -26,8 +26,8 @@ export default function StudentReports() {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      // Get all students
-      const studentsRes = await axios.get('/api/admin/students', {
+      // Get students from your assigned classes
+      const studentsRes = await axios.get('/api/staff/students', {
         headers: { Authorization: `Bearer ${token}` }
       });
       

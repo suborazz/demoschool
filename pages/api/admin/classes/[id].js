@@ -1,6 +1,7 @@
 import connectDB from '../../../../lib/mongodb';
 import Class from '../../../../models/Class';
 import Student from '../../../../models/Student';
+import Staff from '../../../../models/Staff';
 import User from '../../../../models/User';
 import { verify } from 'jsonwebtoken';
 
@@ -84,17 +85,47 @@ export default async function handler(req, res) {
       if (section !== undefined) updateData.section = section;
       if (academicYear !== undefined) updateData.academicYear = academicYear;
       if (capacity !== undefined) updateData.capacity = parseInt(capacity);
-      if (classTeacher !== undefined) updateData.classTeacher = classTeacher;
+      if (classTeacher !== undefined) updateData.classTeacher = classTeacher || null;
       if (room !== undefined) updateData.room = room ? room.trim() : '';
 
       console.log('Updating class ID:', id);
       console.log('Update data:', updateData);
 
+      // Handle class teacher assignment changes
+      if (classTeacher !== undefined) {
+        // Remove this class from old teacher's classes array (if exists)
+        if (classDoc.classTeacher) {
+          await Staff.findByIdAndUpdate(
+            classDoc.classTeacher,
+            { $pull: { classes: { class: id } } }
+          );
+        }
+
+        // Add this class to new teacher's classes array (if assigned)
+        if (classTeacher) {
+          await Staff.findByIdAndUpdate(
+            classTeacher,
+            {
+              $addToSet: {
+                classes: {
+                  class: id,
+                  section: section || classDoc.section,
+                  isClassTeacher: true
+                }
+              }
+            }
+          );
+        }
+      }
+
       const updatedClass = await Class.findByIdAndUpdate(
         id,
         { $set: updateData },
         { new: true, runValidators: true }
-      ).populate('classTeacher', 'firstName lastName');
+      ).populate({
+        path: 'classTeacher',
+        populate: { path: 'user', select: 'firstName lastName email' }
+      });
 
       console.log('Class updated successfully:', updatedClass);
 
@@ -123,6 +154,14 @@ export default async function handler(req, res) {
           success: false,
           message: `Cannot delete class. It has ${studentCount} student(s) enrolled. Please move or remove students first.`
         });
+      }
+
+      // Remove this class from assigned teacher's classes array
+      if (classDoc.classTeacher) {
+        await Staff.findByIdAndUpdate(
+          classDoc.classTeacher,
+          { $pull: { classes: { class: id } } }
+        );
       }
 
       // Delete the class

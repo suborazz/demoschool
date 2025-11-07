@@ -10,7 +10,7 @@ import {
   FaChartLine, FaUserPlus, FaFileInvoice, FaClipboardCheck, 
   FaCalendarAlt, FaBell, FaTrophy, FaArrowUp, FaArrowDown,
   FaClock, FaCheckCircle, FaExclamationTriangle, FaStar,
-  FaDownload, FaPrint, FaSearch, FaFilter, FaSchool, FaSpinner
+  FaDownload, FaPrint, FaSearch, FaFilter, FaSchool, FaSpinner, FaBook
 } from 'react-icons/fa';
 
 export default function AdminDashboard() {
@@ -83,6 +83,7 @@ export default function AdminDashboard() {
   const quickActions = [
     { name: 'Add Student', icon: FaUserPlus, gradient: 'from-blue-500 to-cyan-500', action: '/admin/students' },
     { name: 'Add Staff', icon: FaChalkboardTeacher, gradient: 'from-green-500 to-emerald-500', action: '/admin/staff' },
+    { name: 'Subjects', icon: FaBook, gradient: 'from-indigo-500 to-blue-500', action: '/admin/subjects' },
     { name: 'Manage Fees', icon: FaFileInvoice, gradient: 'from-purple-500 to-pink-500', action: '/admin/fees' },
     { name: 'View Reports', icon: FaChartLine, gradient: 'from-orange-500 to-red-500', action: '/admin/reports' },
     { name: 'Attendance', icon: FaClipboardCheck, gradient: 'from-pink-500 to-rose-500', action: '/admin/attendance' },
@@ -191,7 +192,7 @@ export default function AdminDashboard() {
               <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl p-6 sm:p-8 hover:shadow-purple-500/20 transition-all duration-500 animate-fadeInUp">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8 gap-2">
                   <h2 className="text-2xl sm:text-3xl font-black text-gray-900">Quick Actions</h2>
-                  <span className="text-xs sm:text-sm text-gray-500 font-semibold">8 available actions</span>
+                  <span className="text-xs sm:text-sm text-gray-500 font-semibold">9 available actions</span>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
                   {quickActions.map((action, index) => (
