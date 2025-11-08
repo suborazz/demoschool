@@ -7,6 +7,10 @@ import { verify } from 'jsonwebtoken';
 export default async function handler(req, res) {
   const { id } = req.query;
 
+  if (!id) {
+    return res.status(400).json({ success: false, message: 'Content ID is required' });
+  }
+
   try {
     await connectDB();
 
@@ -36,10 +40,10 @@ export default async function handler(req, res) {
       return res.status(404).json({ success: false, message: 'Staff profile not found' });
     }
 
-    // DELETE - Delete content
+    // DELETE - Remove content
     if (req.method === 'DELETE') {
       const content = await LMSContent.findById(id);
-      
+
       if (!content) {
         return res.status(404).json({
           success: false,
@@ -47,19 +51,52 @@ export default async function handler(req, res) {
         });
       }
 
-      // Verify staff owns this content
+      // Check if this staff uploaded the content
       if (content.uploadedBy.toString() !== staff._id.toString()) {
         return res.status(403).json({
           success: false,
-          message: 'You can only delete content you uploaded'
+          message: 'You can only delete content that you uploaded'
         });
       }
 
-      await LMSContent.findByIdAndDelete(id);
+      // Soft delete by setting isActive to false
+      content.isActive = false;
+      await content.save();
+
+      // Or hard delete (uncomment if you want permanent deletion)
+      // await LMSContent.findByIdAndDelete(id);
 
       return res.status(200).json({
         success: true,
         message: 'Content deleted successfully'
+      });
+    }
+
+    // GET - Fetch single content
+    if (req.method === 'GET') {
+      const content = await LMSContent.findById(id)
+        .populate('subject', 'name code')
+        .populate('class', 'name')
+        .populate('uploadedBy', 'name email');
+
+      if (!content) {
+        return res.status(404).json({
+          success: false,
+          message: 'Content not found'
+        });
+      }
+
+      // Check if this staff has access to this content
+      if (content.uploadedBy._id.toString() !== staff._id.toString()) {
+        return res.status(403).json({
+          success: false,
+          message: 'You do not have permission to view this content'
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: content
       });
     }
 
@@ -78,4 +115,3 @@ export default async function handler(req, res) {
     });
   }
 }
-

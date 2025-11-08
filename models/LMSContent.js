@@ -21,16 +21,10 @@ const lmsContentSchema = new mongoose.Schema({
     default: 'lesson'
   },
   fileUrl: {
-    type: String,
-    required: function() {
-      return this.contentType !== 'link';
-    }
+    type: String
   },
   externalLink: {
-    type: String,
-    required: function() {
-      return this.contentType === 'link';
-    }
+    type: String
   },
   thumbnailUrl: {
     type: String
@@ -48,6 +42,9 @@ const lmsContentSchema = new mongoose.Schema({
   classId: {
     type: String,
     required: true
+  },
+  className: {
+    type: String
   },
   subject: {
     type: mongoose.Schema.Types.ObjectId,

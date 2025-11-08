@@ -10,7 +10,8 @@ import {
   FaChartLine, FaUserPlus, FaFileInvoice, FaClipboardCheck, 
   FaCalendarAlt, FaBell, FaTrophy, FaArrowUp, FaArrowDown,
   FaClock, FaCheckCircle, FaExclamationTriangle, FaStar,
-  FaDownload, FaPrint, FaSearch, FaFilter, FaSchool, FaSpinner, FaBook, FaSyncAlt
+  FaDownload, FaPrint, FaSearch, FaFilter, FaSchool, FaSpinner, FaBook, FaSyncAlt,
+  FaUserCheck, FaCalendarCheck
 } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import UpcomingEvents from '../../components/UpcomingEvents';
@@ -98,7 +99,8 @@ export default function AdminDashboard() {
     { name: 'Subjects', icon: FaBook, gradient: 'from-indigo-500 to-blue-500', action: '/admin/subjects' },
     { name: 'Manage Fees', icon: FaFileInvoice, gradient: 'from-purple-500 to-pink-500', action: '/admin/fees' },
     { name: 'View Reports', icon: FaChartLine, gradient: 'from-orange-500 to-red-500', action: '/admin/reports' },
-    { name: 'Attendance', icon: FaClipboardCheck, gradient: 'from-pink-500 to-rose-500', action: '/admin/attendance' },
+    { name: 'Student Attendance', icon: FaClipboardCheck, gradient: 'from-pink-500 to-rose-500', action: '/admin/attendance-reports' },
+    { name: 'Staff Attendance', icon: FaUserPlus, gradient: 'from-emerald-500 to-teal-500', action: '/admin/staff-attendance' },
     { name: 'Manage Classes', icon: FaSchool, gradient: 'from-indigo-500 to-purple-500', action: '/admin/classes' },
     { name: 'Timetable', icon: FaClock, gradient: 'from-violet-500 to-purple-500', action: '/admin/timetable' },
     { name: 'View Calendar', icon: FaCalendarAlt, gradient: 'from-teal-500 to-cyan-500', action: '/admin/calendar' },
@@ -214,6 +216,30 @@ export default function AdminDashboard() {
             ))}
           </div>
 
+          {/* Staff Attendance Alert */}
+          {dashboardData && dashboardData.todaySummary.presentStaff === 0 && dashboardData.todaySummary.totalStaff > 0 && (
+            <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl shadow-xl p-6">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <FaExclamationTriangle className="text-amber-600 text-2xl" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold text-amber-900 mb-2">Staff Attendance Not Marked Today</h3>
+                  <p className="text-amber-800 mb-4">
+                    Staff attendance for today hasn&apos;t been marked yet. Click the button below to mark attendance for all {dashboardData.todaySummary.totalStaff} staff members.
+                  </p>
+                  <button
+                    onClick={() => router.push('/admin/staff-attendance')}
+                    className="bg-gradient-to-r from-amber-600 to-orange-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
+                  >
+                    <FaUserCheck className="text-xl" />
+                    Mark Staff Attendance Now
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Time Range Stats */}
           {dashboardData && (dashboardData.stats.recentStudents > 0 || dashboardData.stats.recentStaff > 0) && (
             <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl shadow-xl p-6 text-white">
@@ -242,7 +268,7 @@ export default function AdminDashboard() {
               <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl p-6 sm:p-8 hover:shadow-purple-500/20 transition-all duration-500 animate-fadeInUp">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8 gap-2">
                   <h2 className="text-2xl sm:text-3xl font-black text-gray-900">Quick Actions</h2>
-                  <span className="text-xs sm:text-sm text-gray-500 font-semibold">9 available actions</span>
+                  <span className="text-xs sm:text-sm text-gray-500 font-semibold">11 available actions</span>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
                   {quickActions.map((action, index) => (
@@ -265,56 +291,117 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Charts Section - Enhanced */}
+              {/* Performance Metrics - Enhanced */}
               <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl p-6 sm:p-8 hover:shadow-purple-500/20 transition-all duration-500">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8 gap-3 sm:gap-2">
-                  <h2 className="text-2xl sm:text-3xl font-black text-gray-900">Performance Overview</h2>
-                  <div className="flex gap-2 flex-wrap">
-                    <button className="px-3 sm:px-4 py-2 bg-purple-100 text-purple-600 rounded-lg font-bold text-xs sm:text-sm hover:bg-purple-200 transition-all">
-                      Attendance
-                    </button>
-                    <button className="px-3 sm:px-4 py-2 bg-gray-100 text-gray-600 rounded-lg font-bold text-xs sm:text-sm hover:bg-gray-200 transition-all">
-                      Revenue
-                    </button>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-3">
+                  <h2 className="text-2xl sm:text-3xl font-black text-gray-900 flex items-center gap-3">
+                    <FaChartLine className="text-purple-600" />
+                    Key Performance Metrics
+                  </h2>
+                </div>
+
+                {/* Main Metrics Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                  {/* Attendance Rate */}
+                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6 border-2 border-green-200 hover:shadow-lg transition-all">
+                    <div className="flex items-center justify-between mb-3">
+                      <FaCalendarCheck className="text-3xl text-green-600" />
+                      <FaArrowUp className="text-green-600" />
+                    </div>
+                    <p className="text-sm text-gray-600 font-semibold mb-1">Attendance Rate</p>
+                    <p className="text-4xl font-black text-green-600 mb-2">
+                      {dashboardData?.metrics.attendanceRate || '0%'}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {dashboardData?.todaySummary.presentStudents || 0} of {dashboardData?.todaySummary.totalStudents || 0} students present today
+                    </p>
+                  </div>
+
+                  {/* Fee Collection */}
+                  <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-6 border-2 border-blue-200 hover:shadow-lg transition-all">
+                    <div className="flex items-center justify-between mb-3">
+                      <FaMoneyBillWave className="text-3xl text-blue-600" />
+                      {parseFloat(dashboardData?.metrics.feeCollectionRate || 0) >= 70 ? (
+                        <FaArrowUp className="text-blue-600" />
+                      ) : (
+                        <FaArrowDown className="text-blue-600" />
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-600 font-semibold mb-1">Fee Collection</p>
+                    <p className="text-4xl font-black text-blue-600 mb-2">
+                      {dashboardData?.metrics.feeCollectionRate || '0%'}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {dashboardData ? formatCurrency(dashboardData.stats.pendingFees) : '₹0'} pending fees
+                    </p>
+                  </div>
+
+                  {/* Staff Attendance */}
+                  <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-6 border-2 border-purple-200 hover:shadow-lg transition-all">
+                    <div className="flex items-center justify-between mb-3">
+                      <FaChalkboardTeacher className="text-3xl text-purple-600" />
+                      <FaCheckCircle className="text-purple-600" />
+                    </div>
+                    <p className="text-sm text-gray-600 font-semibold mb-1">Staff Attendance</p>
+                    <p className="text-4xl font-black text-purple-600 mb-2">
+                      {dashboardData?.todaySummary.totalStaff > 0 
+                        ? ((dashboardData.todaySummary.presentStaff / dashboardData.todaySummary.totalStaff) * 100).toFixed(1)
+                        : 0}%
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {dashboardData?.todaySummary.presentStaff || 0} of {dashboardData?.todaySummary.totalStaff || 0} staff present today
+                    </p>
                   </div>
                 </div>
 
-                {/* Chart Placeholder - Beautiful */}
-                <div className="bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 rounded-xl sm:rounded-2xl p-6 sm:p-8 h-56 sm:h-64 md:h-72 flex flex-col items-center justify-center relative overflow-hidden">
-                  <div className="absolute inset-0 opacity-10">
-                    {[...Array(5)].map((_, i) => (
-                      <div
-                        key={i}
-                        className="absolute bg-purple-400 rounded-full filter blur-2xl"
-                        style={{
-                          width: `${Math.random() * 100 + 50}px`,
-                          height: `${Math.random() * 100 + 50}px`,
-                          top: `${Math.random() * 100}%`,
-                          left: `${Math.random() * 100}%`,
+                {/* Visual Progress Bars */}
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-bold text-gray-700">Student Attendance Today</span>
+                      <span className="text-sm font-black text-green-600">{dashboardData?.metrics.attendanceRate || '0%'}</span>
+                    </div>
+                    <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-green-500 to-emerald-500 rounded-full transition-all duration-1000"
+                        style={{ width: dashboardData?.metrics.attendanceRate || '0%' }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-bold text-gray-700">Fee Collection Rate</span>
+                      <span className="text-sm font-black text-blue-600">{dashboardData?.metrics.feeCollectionRate || '0%'}</span>
+                    </div>
+                    <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full transition-all duration-1000"
+                        style={{ width: dashboardData?.metrics.feeCollectionRate || '0%' }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-bold text-gray-700">Staff Attendance Today</span>
+                      <span className="text-sm font-black text-purple-600">
+                        {dashboardData?.todaySummary.totalStaff > 0 
+                          ? ((dashboardData.todaySummary.presentStaff / dashboardData.todaySummary.totalStaff) * 100).toFixed(1)
+                          : 0}%
+                      </span>
+                    </div>
+                    <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all duration-1000"
+                        style={{ 
+                          width: dashboardData?.todaySummary.totalStaff > 0 
+                            ? `${((dashboardData.todaySummary.presentStaff / dashboardData.todaySummary.totalStaff) * 100).toFixed(1)}%`
+                            : '0%'
                         }}
                       />
-                    ))}
-                  </div>
-                  
-                  <div className="relative text-center">
-                    <FaChartLine className="text-purple-400 text-5xl sm:text-6xl md:text-7xl lg:text-8xl mb-3 sm:mb-4 mx-auto animate-pulse-slow" />
-                    <p className="text-gray-600 font-bold text-base sm:text-lg md:text-xl">Performance Chart</p>
-                    <p className="text-gray-500 text-xs sm:text-sm">Analytics visualization will appear here</p>
-                  </div>
-                </div>
-
-                {/* Mini Stats */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mt-4 sm:mt-6">
-                  {[
-                    { label: 'Attendance Rate', value: dashboardData?.metrics.attendanceRate || '0%', color: 'text-green-600' },
-                    { label: 'Fee Collection', value: dashboardData?.metrics.feeCollectionRate || '0%', color: 'text-blue-600' },
-                    { label: 'Pass Rate', value: dashboardData?.metrics.passRate || '0%', color: 'text-purple-600' }
-                  ].map((mini, i) => (
-                    <div key={i} className="text-center p-3 sm:p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-all">
-                      <p className={`text-2xl sm:text-3xl font-black ${mini.color} mb-1`}>{mini.value}</p>
-                      <p className="text-xs text-gray-600 font-semibold">{mini.label}</p>
                     </div>
-                  ))}
+                  </div>
                 </div>
               </div>
 

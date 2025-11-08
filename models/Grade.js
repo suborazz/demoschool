@@ -23,7 +23,7 @@ const gradeSchema = new mongoose.Schema({
   examType: {
     type: String,
     required: true,
-    enum: ['Unit Test', 'Mid Term', 'Final', 'Quarterly', 'Half Yearly', 'Annual', 'Assignment', 'Project']
+    enum: ['Unit Test', 'Mid Term', 'Final', 'Quarterly', 'Half Yearly', 'Annual', 'Assignment', 'Project', 'Quiz']
   },
   examDate: {
     type: Date,
