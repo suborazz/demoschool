@@ -140,40 +140,190 @@ export default function StaffManagement() {
   const validateField = (name, value) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const phoneRegex = /^[\d\s\+\-\(\)]+$/;
+    const nameRegex = /^[a-zA-Z\s]+$/;
+    const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
 
     switch (name) {
       case 'firstName':
         if (!value.trim()) return 'First name is required';
-        if (value.length < 2) return 'Must be at least 2 characters';
+        if (value.trim().length < 2) return 'First name must be at least 2 characters';
+        if (value.trim().length > 50) return 'First name must not exceed 50 characters';
+        if (!nameRegex.test(value)) return 'First name should only contain letters';
         return '';
       case 'lastName':
         if (!value.trim()) return 'Last name is required';
-        if (value.length < 2) return 'Must be at least 2 characters';
+        if (value.trim().length < 2) return 'Last name must be at least 2 characters';
+        if (value.trim().length > 50) return 'Last name must not exceed 50 characters';
+        if (!nameRegex.test(value)) return 'Last name should only contain letters';
         return '';
       case 'email':
         if (!value.trim()) return 'Email is required';
-        if (!emailRegex.test(value)) return 'Invalid email format';
+        if (!emailRegex.test(value)) return 'Please enter a valid email address (e.g., staff@school.com)';
+        if (value.length > 100) return 'Email must not exceed 100 characters';
+        return '';
+      case 'password':
+        if (!value) return 'Password is required';
+        if (value.length < 6) return 'Password must be at least 6 characters';
+        if (value.length > 50) return 'Password must not exceed 50 characters';
+        if (!/[A-Za-z]/.test(value)) return 'Password must contain at least one letter';
+        if (!/[0-9]/.test(value)) return 'Password must contain at least one number';
         return '';
       case 'personalEmail':
-        if (value && !emailRegex.test(value)) return 'Invalid email format';
+        if (value && !emailRegex.test(value)) return 'Invalid personal email format';
+        if (value && value.length > 100) return 'Personal email must not exceed 100 characters';
         return '';
       case 'phone':
         if (!value.trim()) return 'Phone is required';
         if (!phoneRegex.test(value)) return 'Only digits, spaces, +, -, () allowed';
-        if (value.replace(/\D/g, '').length < 10) return 'Minimum 10 digits required';
+        const digits = value.replace(/\D/g, '');
+        if (digits.length < 10) return 'Phone must have at least 10 digits';
+        if (digits.length > 15) return 'Phone must not exceed 15 digits';
+        return '';
+      case 'dateOfBirth':
+        if (!value) return 'Date of birth is required';
+        const dob = new Date(value);
+        const today = new Date();
+        if (dob > today) return 'Date of birth cannot be in the future';
+        const age = Math.floor((today - dob) / 31557600000);
+        if (age < 18) return 'Staff must be at least 18 years old';
+        if (age > 70) return 'Staff age must not exceed 70 years';
+        return '';
+      case 'gender':
+        if (!value) return 'Gender is required';
+        if (!['male', 'female', 'other'].includes(value.toLowerCase())) return 'Please select a valid gender';
         return '';
       case 'department':
         if (!value) return 'Department is required';
         return '';
       case 'designation':
         if (!value.trim()) return 'Designation is required';
+        if (value.trim().length < 2) return 'Designation must be at least 2 characters';
+        if (value.trim().length > 100) return 'Designation must not exceed 100 characters';
+        return '';
+      case 'dateOfJoining':
+        if (!value) return 'Date of joining is required';
+        const doj = new Date(value);
+        if (doj > new Date()) return 'Date of joining cannot be in the future';
         return '';
       case 'salary.basicSalary':
-        if (!value || value <= 0) return 'Must be greater than 0';
+        if (!value || value <= 0) return 'Basic salary must be greater than 0';
+        if (value > 10000000) return 'Basic salary seems too high (max 1 crore)';
+        return '';
+      case 'bankDetails.accountNumber':
+        if (value && value.trim().length > 0) {
+          if (!/^\d+$/.test(value)) return 'Account number should only contain digits';
+          if (value.length < 9) return 'Account number must be at least 9 digits';
+          if (value.length > 18) return 'Account number must not exceed 18 digits';
+        }
+        return '';
+      case 'bankDetails.ifscCode':
+        if (value && value.trim().length > 0) {
+          if (!ifscRegex.test(value.toUpperCase())) return 'Invalid IFSC code format (e.g., SBIN0001234)';
+        }
+        return '';
+      case 'qualification.degree':
+        if (!value.trim()) return 'Degree is required';
+        if (value.trim().length < 2) return 'Degree must be at least 2 characters';
         return '';
       default:
         return '';
     }
+  };
+
+  const validateForm = () => {
+    const errors = {};
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const phoneRegex = /^[\d\s\+\-\(\)]+$/;
+    
+    // Basic staff info validation
+    const firstNameError = validateField('firstName', formData.firstName);
+    if (firstNameError) errors.firstName = firstNameError;
+    
+    const lastNameError = validateField('lastName', formData.lastName);
+    if (lastNameError) errors.lastName = lastNameError;
+    
+    const emailError = validateField('email', formData.email);
+    if (emailError) errors.email = emailError;
+    
+    const passwordError = validateField('password', formData.password);
+    if (passwordError) errors.password = passwordError;
+    
+    const phoneError = validateField('phone', formData.phone);
+    if (phoneError) errors.phone = phoneError;
+    
+    const dobError = validateField('dateOfBirth', formData.dateOfBirth);
+    if (dobError) errors.dateOfBirth = dobError;
+    
+    const genderError = validateField('gender', formData.gender);
+    if (genderError) errors.gender = genderError;
+    
+    const departmentError = validateField('department', formData.department);
+    if (departmentError) errors.department = departmentError;
+    
+    const designationError = validateField('designation', formData.designation);
+    if (designationError) errors.designation = designationError;
+    
+    const dojError = validateField('dateOfJoining', formData.dateOfJoining);
+    if (dojError) errors.dateOfJoining = dojError;
+
+    const degreeError = validateField('qualification.degree', formData.qualification.degree);
+    if (degreeError) errors['qualification.degree'] = degreeError;
+
+    const salaryError = validateField('salary.basicSalary', formData.salary.basicSalary);
+    if (salaryError) errors['salary.basicSalary'] = salaryError;
+    
+    // Validate personal email if provided
+    if (formData.personalEmail) {
+      if (!emailRegex.test(formData.personalEmail)) {
+        errors.personalEmail = 'Invalid personal email format';
+      }
+      if (formData.personalEmail.toLowerCase() === formData.email.toLowerCase()) {
+        errors.personalEmail = 'Personal email must be different from official email';
+      }
+    }
+    
+    // Validate bank details if provided
+    if (formData.bankDetails.accountNumber) {
+      const accountError = validateField('bankDetails.accountNumber', formData.bankDetails.accountNumber);
+      if (accountError) errors['bankDetails.accountNumber'] = accountError;
+    }
+    
+    if (formData.bankDetails.ifscCode) {
+      const ifscError = validateField('bankDetails.ifscCode', formData.bankDetails.ifscCode);
+      if (ifscError) errors['bankDetails.ifscCode'] = ifscError;
+    }
+    
+    // Validate emergency contact if provided
+    if (formData.emergencyContact.phone) {
+      if (!phoneRegex.test(formData.emergencyContact.phone)) {
+        errors['emergencyContact.phone'] = 'Invalid emergency contact phone format';
+      }
+      const emergencyDigits = formData.emergencyContact.phone.replace(/\D/g, '');
+      if (emergencyDigits.length < 10) {
+        errors['emergencyContact.phone'] = 'Emergency contact must have at least 10 digits';
+      }
+    }
+    
+    if (formData.emergencyContact.name && formData.emergencyContact.name.trim().length < 2) {
+      errors['emergencyContact.name'] = 'Emergency contact name must be at least 2 characters';
+    }
+    
+    // Validate alternate contact if provided
+    if (formData.alternateContact.phone) {
+      if (!phoneRegex.test(formData.alternateContact.phone)) {
+        errors['alternateContact.phone'] = 'Invalid alternate contact phone format';
+      }
+      const alternateDigits = formData.alternateContact.phone.replace(/\D/g, '');
+      if (alternateDigits.length < 10) {
+        errors['alternateContact.phone'] = 'Alternate contact must have at least 10 digits';
+      }
+    }
+    
+    if (formData.alternateContact.email && !emailRegex.test(formData.alternateContact.email)) {
+      errors['alternateContact.email'] = 'Invalid alternate contact email format';
+    }
+
+    return errors;
   };
 
   const handleInputChange = (e) => {
@@ -187,8 +337,8 @@ export default function StaffManagement() {
       }));
     }
 
-    // Validate field in real-time for edit modal
-    if (showEditModal) {
+    // Validate field in real-time for non-nested fields
+    if (!name.includes('.')) {
       const error = validateField(name, value);
       if (error) {
         setFieldErrors(prev => ({
@@ -235,8 +385,21 @@ export default function StaffManagement() {
     setSubmitting(true);
     setError('');
     setSuccess('');
+    setFieldErrors({});
 
     try {
+      // Client-side validation
+      const errors = validateForm();
+      
+      if (Object.keys(errors).length > 0) {
+        setFieldErrors(errors);
+        const firstError = Object.values(errors)[0];
+        toast.error(firstError);
+        setSubmitting(false);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
+
       const response = await axios.post('/api/admin/staff', formData, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -247,7 +410,7 @@ export default function StaffManagement() {
         setShowCredentials(true);
       }
 
-      toast.success('Staff member added successfully!');
+      toast.success(`Staff member added successfully! Employee ID: ${response.data.staff.employeeId}`);
       setShowModal(false);
       resetForm();
       fetchStaff();
@@ -259,84 +422,20 @@ export default function StaffManagement() {
     }
   };
 
-  const validateForm = () => {
-    const errors = [];
-
-    // Required field validation
-    if (!formData.firstName?.trim()) {
-      errors.push('First name is required');
-    }
-    if (!formData.lastName?.trim()) {
-      errors.push('Last name is required');
-    }
-    if (!formData.email?.trim()) {
-      errors.push('Email is required');
-    }
-    if (!formData.phone?.trim()) {
-      errors.push('Phone number is required');
-    }
-    if (!formData.department) {
-      errors.push('Department is required');
-    }
-    if (!formData.designation?.trim()) {
-      errors.push('Designation is required');
-    }
-    if (!formData.salary?.basicSalary || formData.salary.basicSalary <= 0) {
-      errors.push('Basic salary must be greater than 0');
-    }
-
-    // Email format validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (formData.email && !emailRegex.test(formData.email)) {
-      errors.push('Please enter a valid email address');
-    }
-
-    // Personal email validation (if provided)
-    if (formData.personalEmail && !emailRegex.test(formData.personalEmail)) {
-      errors.push('Please enter a valid personal email address');
-    }
-
-    // Phone number validation (basic)
-    const phoneRegex = /^[\d\s\+\-\(\)]+$/;
-    if (formData.phone && !phoneRegex.test(formData.phone)) {
-      errors.push('Please enter a valid phone number (digits, spaces, +, -, () only)');
-    }
-    if (formData.phone && formData.phone.replace(/\D/g, '').length < 10) {
-      errors.push('Phone number must have at least 10 digits');
-    }
-
-    // Name length validation
-    if (formData.firstName && formData.firstName.length < 2) {
-      errors.push('First name must be at least 2 characters');
-    }
-    if (formData.lastName && formData.lastName.length < 2) {
-      errors.push('Last name must be at least 2 characters');
-    }
-
-    // Salary validation
-    if (formData.salary?.allowances?.houseRent < 0) {
-      errors.push('House rent allowance cannot be negative');
-    }
-    if (formData.salary?.allowances?.transport < 0) {
-      errors.push('Transport allowance cannot be negative');
-    }
-    if (formData.salary?.allowances?.medical < 0) {
-      errors.push('Medical allowance cannot be negative');
-    }
-
-    return errors;
-  };
-
   const handleEdit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
     setError('');
+    setFieldErrors({});
 
     // Validate form
     const validationErrors = validateForm();
-    if (validationErrors.length > 0) {
-      toast.error(validationErrors.join('. '));
+    if (Object.keys(validationErrors).length > 0) {
+      setFieldErrors(validationErrors);
+      const firstError = Object.values(validationErrors)[0];
+      toast.error(firstError);
       setSubmitting(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
 
@@ -717,70 +816,119 @@ export default function StaffManagement() {
 
               {/* Modal Body */}
               <form onSubmit={handleSubmit} className="p-8 space-y-8 bg-gradient-to-br from-green-50 via-white to-emerald-50">
-                {/* Important Information about Duplicate Names */}
+                {/* Required Fields Notice */}
+                <div className="bg-green-50 border-2 border-green-200 rounded-xl p-4">
+                  <p className="text-sm font-bold text-green-800 mb-2">📋 Required Fields:</p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs text-green-700">
+                    <div>✓ First Name (2-50 chars, letters only)</div>
+                    <div>✓ Last Name (2-50 chars, letters only)</div>
+                    <div>✓ Official Email (valid format, MUST BE UNIQUE)</div>
+                    <div>✓ Password (6+ chars, letters + numbers)</div>
+                    <div>✓ Phone (10+ digits)</div>
+                    <div>✓ Date of Birth (18-65 years)</div>
+                    <div>✓ Gender (Male/Female/Other)</div>
+                    <div>✓ Department & Designation</div>
+                    <div>✓ Date of Joining (past or today)</div>
+                    <div>✓ Qualification Degree</div>
+                    <div>✓ Basic Salary (₹5,000-₹5,00,000)</div>
+                  </div>
+                  <p className="text-xs text-green-600 mt-2">
+                    💡 <span className="text-red-500">*</span> indicates required fields | Bank details & contacts are optional
+                  </p>
+                </div>
+
+                {/* Email Uniqueness Warning */}
+                <div className="bg-red-50 border-2 border-red-300 rounded-xl p-4">
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">🚫</span>
+                    <div>
+                      <p className="text-sm font-bold text-red-800 mb-1">Email Uniqueness Policy:</p>
+                      <p className="text-xs text-red-700">
+                        <strong>NO two staff members can have the same official email address.</strong> Each email must be unique across the entire system. 
+                        If you try to use an existing email, the system will reject it.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Important Information about What Can/Cannot Be Duplicate */}
                 <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-300 rounded-2xl p-6 shadow-lg">
                   <div className="flex items-start gap-4">
                     <div className="text-4xl">💡</div>
                     <div className="flex-1">
-                      <h4 className="text-xl font-black text-green-900 mb-3">Multiple Staff with Same Name? No Problem!</h4>
-                      <div className="space-y-2 text-sm text-gray-700">
-                        <p className="flex items-start gap-2">
-                          <span className="text-green-600 font-bold">✓</span>
-                          <span><strong>Same staff names allowed:</strong> You can add multiple &quot;Rajesh Kumar&quot; or &quot;John Smith&quot; teachers</span>
-                        </p>
-                        <p className="flex items-start gap-2">
-                          <span className="text-green-600 font-bold">✓</span>
-                          <span><strong>Same designations allowed:</strong> Multiple &quot;Senior Teacher&quot; or &quot;Lab Assistant&quot;</span>
-                        </p>
-                        <p className="flex items-start gap-2">
-                          <span className="text-green-600 font-bold">✓</span>
-                          <span><strong>Same department allowed:</strong> Multiple staff in &quot;Teaching&quot; or &quot;Administrative&quot;</span>
-                        </p>
-                        
-                        {/* Real-world Examples */}
-                        <div className="mt-5 pt-4 border-t-2 border-green-200">
-                          <p className="font-bold text-green-900 mb-3">📝 Real-World Examples:</p>
-                          <div className="bg-white rounded-xl p-4 mb-3 border-2 border-green-200">
-                            <p className="font-bold text-green-700 mb-2">Example 1: Same Staff Names ✅</p>
-                            <div className="text-xs space-y-1 ml-4">
-                              <p>• Teacher 1: <strong>Rajesh Kumar</strong> (EMP20240001, rajesh.k1@school.com)</p>
-                              <p>• Teacher 2: <strong>Rajesh Kumar</strong> (EMP20240002, rajesh.k2@school.com)</p>
-                              <p className="text-green-600 font-semibold mt-2">✓ Both stored successfully in same department!</p>
-                            </div>
-                          </div>
-                          <div className="bg-white rounded-xl p-4 mb-3 border-2 border-blue-200">
-                            <p className="font-bold text-blue-700 mb-2">Example 2: Same Designation ✅</p>
-                            <div className="text-xs space-y-1 ml-4">
-                              <p>• Staff 1: <strong>Amit Shah</strong> - Senior Teacher (amit@school.com)</p>
-                              <p>• Staff 2: <strong>Priya Patel</strong> - Senior Teacher (priya@school.com)</p>
-                              <p>• Staff 3: <strong>Rahul Singh</strong> - Senior Teacher (rahul@school.com)</p>
-                              <p className="text-blue-600 font-semibold mt-2">✓ All stored with same designation!</p>
-                            </div>
-                          </div>
-                          <div className="bg-white rounded-xl p-4 border-2 border-purple-200">
-                            <p className="font-bold text-purple-700 mb-2">Example 3: Spouse Teachers ✅</p>
-                            <div className="text-xs space-y-1 ml-4">
-                              <p>• Husband: <strong>Mr. Sharma</strong> (mrsharm@school.com, Same Address)</p>
-                              <p>• Wife: <strong>Mrs. Sharma</strong> (mrssharm@school.com, Same Address)</p>
-                              <p className="text-purple-600 font-semibold mt-2">✓ Both stored with same address!</p>
-                            </div>
-                          </div>
+                      <h4 className="text-xl font-black text-green-900 mb-3">What Can and Cannot Be Duplicate</h4>
+                      
+                      <div className="mb-3">
+                        <p className="text-sm font-bold text-green-800 mb-2">✅ CAN be duplicate:</p>
+                        <div className="space-y-1 text-sm text-gray-700">
+                          <p className="flex items-start gap-2">
+                            <span className="text-green-600 font-bold">✓</span>
+                            <span><strong>Staff names:</strong> Multiple &quot;Rajesh Kumar&quot; or &quot;John Smith&quot; allowed</span>
+                          </p>
+                          <p className="flex items-start gap-2">
+                            <span className="text-green-600 font-bold">✓</span>
+                            <span><strong>Designations:</strong> Multiple &quot;Senior Teacher&quot; or &quot;Lab Assistant&quot; allowed</span>
+                          </p>
                         </div>
+                      </div>
 
-                        <div className="mt-4 pt-4 border-t-2 border-green-200">
-                          <p className="font-bold text-green-900 mb-2">🔐 What must be unique:</p>
-                          <ul className="space-y-1 ml-6">
-                            <li className="flex items-center gap-2">
-                              <span className="text-green-600">🔹</span>
-                              <span><strong>Employee ID</strong> - Auto-generated, globally unique</span>
-                            </li>
-                            <li className="flex items-center gap-2">
-                              <span className="text-green-600">🔹</span>
-                              <span><strong>Official Email</strong> - Must be unique for login</span>
-                            </li>
-                          </ul>
-                          <p className="text-xs text-gray-600 mt-3 italic">Note: Personal email, phone, and all other fields can be duplicate</p>
+                      <div>
+                        <p className="text-sm font-bold text-red-800 mb-2">❌ CANNOT be duplicate:</p>
+                        <div className="space-y-1 text-sm text-gray-700">
+                          <p className="flex items-start gap-2">
+                            <span className="text-red-600 font-bold">✗</span>
+                            <span><strong>Official Email:</strong> MUST BE UNIQUE - No two staff can have same email</span>
+                          </p>
+                          <p className="flex items-start gap-2">
+                            <span className="text-red-600 font-bold">✗</span>
+                            <span><strong>Employee ID:</strong> Auto-generated, always unique (EMP20240001, EMP20240002, etc.)</span>
+                          </p>
                         </div>
+                      </div>
+                      
+                      {/* Real-world Examples */}
+                      <div className="mt-5 pt-4 border-t-2 border-green-200">
+                        <p className="font-bold text-green-900 mb-3">📝 Real-World Examples:</p>
+                        <div className="bg-white rounded-xl p-4 mb-3 border-2 border-green-200">
+                          <p className="font-bold text-green-700 mb-2">Example 1: Same Staff Names ✅</p>
+                          <div className="text-xs space-y-1 ml-4">
+                            <p>• Teacher 1: <strong>Rajesh Kumar</strong> (EMP20240001, rajesh.k1@school.com)</p>
+                            <p>• Teacher 2: <strong>Rajesh Kumar</strong> (EMP20240002, rajesh.k2@school.com)</p>
+                            <p className="text-green-600 font-semibold mt-2">✓ Both stored successfully in same department!</p>
+                          </div>
+                        </div>
+                        <div className="bg-white rounded-xl p-4 mb-3 border-2 border-blue-200">
+                          <p className="font-bold text-blue-700 mb-2">Example 2: Same Designation ✅</p>
+                          <div className="text-xs space-y-1 ml-4">
+                            <p>• Staff 1: <strong>Amit Shah</strong> - Senior Teacher (amit@school.com)</p>
+                            <p>• Staff 2: <strong>Priya Patel</strong> - Senior Teacher (priya@school.com)</p>
+                            <p>• Staff 3: <strong>Rahul Singh</strong> - Senior Teacher (rahul@school.com)</p>
+                            <p className="text-blue-600 font-semibold mt-2">✓ All stored with same designation!</p>
+                          </div>
+                        </div>
+                        <div className="bg-white rounded-xl p-4 border-2 border-purple-200">
+                          <p className="font-bold text-purple-700 mb-2">Example 3: Spouse Teachers ✅</p>
+                          <div className="text-xs space-y-1 ml-4">
+                            <p>• Husband: <strong>Mr. Sharma</strong> (mrsharm@school.com, Same Address)</p>
+                            <p>• Wife: <strong>Mrs. Sharma</strong> (mrssharm@school.com, Same Address)</p>
+                            <p className="text-purple-600 font-semibold mt-2">✓ Both stored with same address!</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 pt-4 border-t-2 border-green-200">
+                        <p className="font-bold text-green-900 mb-2">🔐 What must be unique:</p>
+                        <ul className="space-y-1 ml-6">
+                          <li className="flex items-center gap-2">
+                            <span className="text-green-600">🔹</span>
+                            <span><strong>Employee ID</strong> - Auto-generated, globally unique</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <span className="text-green-600">🔹</span>
+                            <span><strong>Official Email</strong> - Must be unique for login</span>
+                          </li>
+                        </ul>
+                        <p className="text-xs text-gray-600 mt-3 italic">Note: Personal email, phone, and all other fields can be duplicate</p>
                       </div>
                     </div>
                   </div>
@@ -821,9 +969,18 @@ export default function StaffManagement() {
                         name="firstName"
                         value={formData.firstName}
                         onChange={handleInputChange}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-200 focus:outline-none"
+                        className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:outline-none transition-all ${
+                          fieldErrors.firstName 
+                            ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
+                            : 'border-gray-200 focus:border-green-500 focus:ring-green-200'
+                        }`}
                         required
                       />
+                      {fieldErrors.firstName && (
+                        <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                          <FaExclamationTriangle /> {fieldErrors.firstName}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-2">
@@ -834,9 +991,18 @@ export default function StaffManagement() {
                         name="lastName"
                         value={formData.lastName}
                         onChange={handleInputChange}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-200 focus:outline-none"
+                        className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:outline-none transition-all ${
+                          fieldErrors.lastName 
+                            ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
+                            : 'border-gray-200 focus:border-green-500 focus:ring-green-200'
+                        }`}
                         required
                       />
+                      {fieldErrors.lastName && (
+                        <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                          <FaExclamationTriangle /> {fieldErrors.lastName}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
@@ -848,9 +1014,18 @@ export default function StaffManagement() {
                         name="dateOfBirth"
                         value={formData.dateOfBirth}
                         onChange={handleInputChange}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-200 focus:outline-none"
+                        className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:outline-none transition-all ${
+                          fieldErrors.dateOfBirth 
+                            ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
+                            : 'border-gray-200 focus:border-green-500 focus:ring-green-200'
+                        }`}
                         required
                       />
+                      {fieldErrors.dateOfBirth && (
+                        <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                          <FaExclamationTriangle /> {fieldErrors.dateOfBirth}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
@@ -861,7 +1036,11 @@ export default function StaffManagement() {
                         name="gender"
                         value={formData.gender}
                         onChange={handleInputChange}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-200 focus:outline-none"
+                        className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:outline-none transition-all ${
+                          fieldErrors.gender 
+                            ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
+                            : 'border-gray-200 focus:border-green-500 focus:ring-green-200'
+                        }`}
                         required
                       >
                         <option value="">Select Gender</option>
@@ -869,6 +1048,11 @@ export default function StaffManagement() {
                         <option value="female">Female</option>
                         <option value="other">Other</option>
                       </select>
+                      {fieldErrors.gender && (
+                        <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                          <FaExclamationTriangle /> {fieldErrors.gender}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -894,11 +1078,23 @@ export default function StaffManagement() {
                         name="email"
                         value={formData.email}
                         onChange={handleInputChange}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-200 focus:outline-none"
+                        className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:outline-none transition-all ${
+                          fieldErrors.email 
+                            ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
+                            : 'border-gray-200 focus:border-green-500 focus:ring-green-200'
+                        }`}
                         placeholder="staff@school.com"
                         required
                       />
-                      <p className="text-xs text-gray-500 mt-1">This will be used for login</p>
+                      {fieldErrors.email ? (
+                        <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                          <FaExclamationTriangle /> {fieldErrors.email}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-gray-500 mt-1">
+                          🔒 This will be used for login | <strong className="text-red-600">MUST BE UNIQUE</strong> - No duplicate emails allowed
+                        </p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
@@ -925,10 +1121,19 @@ export default function StaffManagement() {
                         name="phone"
                         value={formData.phone}
                         onChange={handleInputChange}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-200 focus:outline-none"
+                        className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:outline-none transition-all ${
+                          fieldErrors.phone 
+                            ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
+                            : 'border-gray-200 focus:border-green-500 focus:ring-green-200'
+                        }`}
                         placeholder="+91 9876543210"
                         required
                       />
+                      {fieldErrors.phone && (
+                        <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                          <FaExclamationTriangle /> {fieldErrors.phone}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-2">
@@ -939,11 +1144,20 @@ export default function StaffManagement() {
                         name="password"
                         value={formData.password}
                         onChange={handleInputChange}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-200 focus:outline-none"
-                        placeholder="Minimum 6 characters"
+                        className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:outline-none transition-all ${
+                          fieldErrors.password 
+                            ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
+                            : 'border-gray-200 focus:border-green-500 focus:ring-green-200'
+                        }`}
+                        placeholder="Min 6 chars, 1 letter, 1 number"
                         minLength="6"
                         required
                       />
+                      {fieldErrors.password && (
+                        <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                          <FaExclamationTriangle /> {fieldErrors.password}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1157,7 +1371,11 @@ export default function StaffManagement() {
                         name="department"
                         value={formData.department}
                         onChange={handleInputChange}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-200 focus:outline-none"
+                        className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:outline-none transition-all ${
+                          fieldErrors.department 
+                            ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
+                            : 'border-gray-200 focus:border-green-500 focus:ring-green-200'
+                        }`}
                         required
                       >
                         <option value="">Select Department</option>
@@ -1166,6 +1384,11 @@ export default function StaffManagement() {
                         <option value="Support">Support</option>
                         <option value="Management">Management</option>
                       </select>
+                      {fieldErrors.department && (
+                        <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                          <FaExclamationTriangle /> {fieldErrors.department}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-2">
@@ -1176,10 +1399,19 @@ export default function StaffManagement() {
                         name="designation"
                         value={formData.designation}
                         onChange={handleInputChange}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-200 focus:outline-none"
+                        className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:outline-none transition-all ${
+                          fieldErrors.designation 
+                            ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
+                            : 'border-gray-200 focus:border-green-500 focus:ring-green-200'
+                        }`}
                         placeholder="e.g., Senior Teacher, Principal"
                         required
                       />
+                      {fieldErrors.designation && (
+                        <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                          <FaExclamationTriangle /> {fieldErrors.designation}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
@@ -1191,9 +1423,18 @@ export default function StaffManagement() {
                         name="dateOfJoining"
                         value={formData.dateOfJoining}
                         onChange={handleInputChange}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-200 focus:outline-none"
+                        className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:outline-none transition-all ${
+                          fieldErrors.dateOfJoining 
+                            ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
+                            : 'border-gray-200 focus:border-green-500 focus:ring-green-200'
+                        }`}
                         required
                       />
+                      {fieldErrors.dateOfJoining && (
+                        <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                          <FaExclamationTriangle /> {fieldErrors.dateOfJoining}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
@@ -1219,20 +1460,32 @@ export default function StaffManagement() {
                       <FaGraduationCap className="text-white text-xl" />
                     </div>
                     <h3 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">
-                      Qualification <span className="text-sm text-gray-500">(Optional)</span>
+                      Qualification
                     </h3>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-2">Degree</label>
+                      <label className="block text-sm font-bold text-gray-700 mb-2">
+                        Degree <span className="text-red-500">*</span>
+                      </label>
                       <input
                         type="text"
                         name="qualification.degree"
                         value={formData.qualification.degree}
                         onChange={handleInputChange}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-200 focus:outline-none"
+                        className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:outline-none transition-all ${
+                          fieldErrors['qualification.degree'] 
+                            ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
+                            : 'border-gray-200 focus:border-green-500 focus:ring-green-200'
+                        }`}
                         placeholder="e.g., B.Ed, M.Sc"
+                        required
                       />
+                      {fieldErrors['qualification.degree'] && (
+                        <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                          <FaExclamationTriangle /> {fieldErrors['qualification.degree']}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-2">Specialization</label>
@@ -1292,11 +1545,20 @@ export default function StaffManagement() {
                         name="salary.basicSalary"
                         value={formData.salary.basicSalary}
                         onChange={handleInputChange}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-200 focus:outline-none"
+                        className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:outline-none transition-all ${
+                          fieldErrors['salary.basicSalary'] 
+                            ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
+                            : 'border-gray-200 focus:border-green-500 focus:ring-green-200'
+                        }`}
                         placeholder="₹"
                         min="0"
                         required
                       />
+                      {fieldErrors['salary.basicSalary'] && (
+                        <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                          <FaExclamationTriangle /> {fieldErrors['salary.basicSalary']}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-2">House Rent Allowance</label>
@@ -1529,6 +1791,40 @@ export default function StaffManagement() {
 
               {/* Modal Body - Simplified Edit Form */}
               <form onSubmit={handleEdit} className="p-8 space-y-8 bg-gradient-to-br from-blue-50 via-white to-purple-50">
+                {/* Required Fields Notice */}
+                <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
+                  <p className="text-sm font-bold text-blue-800 mb-2">📋 Required Fields:</p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs text-blue-700">
+                    <div>✓ First Name (2-50 chars, letters only)</div>
+                    <div>✓ Last Name (2-50 chars, letters only)</div>
+                    <div>✓ Official Email (valid format, MUST BE UNIQUE)</div>
+                    <div>✓ Phone (10+ digits)</div>
+                    <div>✓ Date of Birth (18-65 years)</div>
+                    <div>✓ Gender (Male/Female/Other)</div>
+                    <div>✓ Department & Designation</div>
+                    <div>✓ Date of Joining (past or today)</div>
+                    <div>✓ Qualification Degree</div>
+                    <div>✓ Basic Salary (₹5,000-₹5,00,000)</div>
+                  </div>
+                  <p className="text-xs text-blue-600 mt-2">
+                    💡 <span className="text-red-500">*</span> indicates required fields | Password not required for update
+                  </p>
+                </div>
+
+                {/* Email Uniqueness Warning */}
+                <div className="bg-red-50 border-2 border-red-300 rounded-xl p-4">
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">🚫</span>
+                    <div>
+                      <p className="text-sm font-bold text-red-800 mb-1">Email Uniqueness Policy:</p>
+                      <p className="text-xs text-red-700">
+                        <strong>NO two staff members can have the same official email address.</strong> Each email must be unique across the entire system. 
+                        If you try to use an existing email, the system will reject it.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 {error && (
                   <div className="bg-gradient-to-r from-red-50 to-rose-50 border-2 border-red-500 rounded-2xl p-5 shadow-xl flex items-center gap-4">
                     <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-rose-600 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
@@ -1594,11 +1890,16 @@ export default function StaffManagement() {
                             ? 'border-red-500 focus:border-red-500 focus:ring-red-200' 
                             : 'border-gray-200 focus:border-blue-500 focus:ring-blue-200'
                         }`}
+                        placeholder="staff@school.com"
                         required 
                       />
-                      {fieldErrors.email && (
+                      {fieldErrors.email ? (
                         <p className="text-red-500 text-xs mt-1 font-semibold flex items-center gap-1">
                           <span>⚠️</span> {fieldErrors.email}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-gray-500 mt-1">
+                          🔒 Used for login | <strong className="text-red-600">MUST BE UNIQUE</strong> - No duplicate emails allowed
                         </p>
                       )}
                     </div>

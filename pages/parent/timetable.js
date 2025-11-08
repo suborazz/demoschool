@@ -6,12 +6,14 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { 
   FaClock, FaSpinner, FaBook, FaUserTie, 
-  FaCalendarAlt, FaMapMarkerAlt, FaDownload, FaPrint
+  FaCalendarAlt, FaMapMarkerAlt, FaPrint, FaUserGraduate
 } from 'react-icons/fa';
 
-export default function StudentTimetable() {
-  const { token, user } = useAuth();
+export default function ParentTimetable() {
+  const { token } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [children, setChildren] = useState([]);
+  const [selectedChild, setSelectedChild] = useState(null);
   const [timetableData, setTimetableData] = useState(null);
   const [selectedDay, setSelectedDay] = useState('Monday');
 
@@ -28,15 +30,42 @@ export default function StudentTimetable() {
 
   useEffect(() => {
     if (token) {
-      fetchTimetable();
+      fetchChildren();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
-  const fetchTimetable = async () => {
+  useEffect(() => {
+    if (selectedChild) {
+      fetchTimetable(selectedChild);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedChild]);
+
+  const fetchChildren = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/student/timetable', {
+      const response = await axios.get('/api/parent/children', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const childrenData = response.data.data || [];
+      setChildren(childrenData);
+      if (childrenData.length > 0) {
+        setSelectedChild(childrenData[0]._id);
+      } else {
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error('Error fetching children:', error);
+      toast.error('Failed to load children data');
+      setLoading(false);
+    }
+  };
+
+  const fetchTimetable = async (studentId) => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`/api/parent/timetable?studentId=${studentId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setTimetableData(response.data.data);
@@ -70,9 +99,13 @@ export default function StudentTimetable() {
     window.print();
   };
 
+  const getSelectedChildInfo = () => {
+    return children.find(child => child._id === selectedChild);
+  };
+
   if (loading) {
     return (
-      <ProtectedRoute allowedRoles={['student']}>
+      <ProtectedRoute allowedRoles={['parent']}>
         <DashboardLayout>
           <div className="flex items-center justify-center min-h-screen">
             <FaSpinner className="text-6xl text-purple-600 animate-spin" />
@@ -82,24 +115,40 @@ export default function StudentTimetable() {
     );
   }
 
+  if (children.length === 0) {
+    return (
+      <ProtectedRoute allowedRoles={['parent']}>
+        <DashboardLayout>
+          <div className="bg-white rounded-2xl shadow-xl p-12 text-center">
+            <FaUserGraduate className="text-8xl text-gray-300 mx-auto mb-6" />
+            <h2 className="text-3xl font-black text-gray-900 mb-4">No Children Found</h2>
+            <p className="text-gray-600 text-lg">
+              No student records are linked to your account. Please contact the school administration.
+            </p>
+          </div>
+        </DashboardLayout>
+      </ProtectedRoute>
+    );
+  }
+
+  const childInfo = getSelectedChildInfo();
+
   return (
-    <ProtectedRoute allowedRoles={['student']}>
+    <ProtectedRoute allowedRoles={['parent']}>
       <DashboardLayout>
         <div className="space-y-6">
           {/* Header */}
           <div className="bg-white rounded-2xl shadow-2xl p-6 border-2 border-purple-100">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-4">
               <div className="flex items-center gap-4">
                 <div className="w-16 h-16 bg-gradient-to-br from-purple-600 to-pink-600 rounded-2xl flex items-center justify-center shadow-xl">
                   <FaClock className="text-white text-3xl" />
                 </div>
                 <div>
                   <h1 className="text-4xl font-black bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-                    My Timetable
+                    Class Timetable
                   </h1>
-                  <p className="text-gray-600 font-semibold">
-                    {timetableData?.name} - Grade {timetableData?.grade} {timetableData?.section}
-                  </p>
+                  <p className="text-gray-600 font-semibold">View your child&apos;s schedule</p>
                 </div>
               </div>
               <button
@@ -111,6 +160,46 @@ export default function StudentTimetable() {
               </button>
             </div>
           </div>
+
+          {/* Child Selection */}
+          {children.length > 1 && (
+            <div className="bg-white rounded-2xl shadow-xl p-6">
+              <label className="block text-lg font-bold text-gray-900 mb-3">
+                <FaUserGraduate className="inline mr-2 text-purple-600" />
+                Select Child
+              </label>
+              <select
+                value={selectedChild || ''}
+                onChange={(e) => setSelectedChild(e.target.value)}
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all font-semibold"
+              >
+                {children.map(child => (
+                  <option key={child._id} value={child._id}>
+                    {child.user?.firstName} {child.user?.lastName} - {child.rollNumber} - {child.class?.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Current Child Info */}
+          {childInfo && (
+            <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl p-6 text-white shadow-xl">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 bg-white bg-opacity-20 rounded-xl flex items-center justify-center">
+                  <FaUserGraduate className="text-3xl" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-black">
+                    {childInfo.user?.firstName} {childInfo.user?.lastName}
+                  </h2>
+                  <p className="text-white text-opacity-90 font-semibold">
+                    Roll No: {childInfo.rollNumber} | {timetableData?.name} - Grade {timetableData?.grade} {timetableData?.section}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {timetableData && timetableData.timetable && timetableData.timetable.length > 0 ? (
             <>
@@ -154,7 +243,7 @@ export default function StudentTimetable() {
                   <div className="bg-white rounded-2xl shadow-xl p-12 text-center">
                     <FaCalendarAlt className="text-6xl text-gray-300 mx-auto mb-4" />
                     <p className="text-xl font-bold text-gray-900 mb-2">No Classes</p>
-                    <p className="text-gray-600">You don&apos;t have any classes scheduled for {selectedDay}</p>
+                    <p className="text-gray-600">No classes scheduled for {selectedDay}</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -261,7 +350,7 @@ export default function StudentTimetable() {
               <FaCalendarAlt className="text-8xl text-gray-300 mx-auto mb-6" />
               <h2 className="text-3xl font-black text-gray-900 mb-4">No Timetable Available</h2>
               <p className="text-gray-600 text-lg">
-                Your class timetable hasn&apos;t been created yet. Please contact your class teacher or administration.
+                The class timetable hasn&apos;t been created yet. Please contact the school administration.
               </p>
             </div>
           )}
@@ -270,3 +359,4 @@ export default function StudentTimetable() {
     </ProtectedRoute>
   );
 }
+

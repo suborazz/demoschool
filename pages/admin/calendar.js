@@ -6,7 +6,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { 
   FaCalendarAlt, FaPlus, FaBell, FaGraduationCap, FaUsers, FaBook,
-  FaEdit, FaTrash, FaTimes, FaSave, FaSpinner, FaClock
+  FaEdit, FaTrash, FaTimes, FaSave, FaSpinner, FaClock, FaExclamationTriangle
 } from 'react-icons/fa';
 
 export default function Calendar() {
@@ -20,7 +20,7 @@ export default function Calendar() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
-  const [timeFilter, setTimeFilter] = useState('today'); // New state for time filter
+  const [timeFilter, setTimeFilter] = useState('month'); // Show this month's events by default
 
   const [formData, setFormData] = useState({
     title: '',
@@ -41,9 +41,13 @@ export default function Calendar() {
       const response = await axios.get('/api/admin/events', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setEvents(response.data.data || []);
+      console.log('Events fetched:', response.data);
+      const eventsData = response.data.data || [];
+      console.log('Total events:', eventsData.length);
+      setEvents(eventsData);
     } catch (error) {
       console.error('Error fetching events:', error);
+      console.error('Error details:', error.response?.data);
       toast.error('Failed to load events');
     } finally {
       setLoading(false);
@@ -57,20 +61,60 @@ export default function Calendar() {
   }, [token, fetchEvents]);
 
   const validateField = (name, value) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     switch (name) {
       case 'title':
         if (!value.trim()) return 'Event title is required';
+        if (value.trim().length < 3) return 'Title must be at least 3 characters';
+        if (value.trim().length > 100) return 'Title must not exceed 100 characters';
         return '';
       case 'eventType':
         if (!value) return 'Event type is required';
         return '';
       case 'startDate':
         if (!value) return 'Start date is required';
+        const startDate = new Date(value);
+        startDate.setHours(0, 0, 0, 0);
+        if (startDate < today) {
+          return 'Start date cannot be in the past. Please select today or a future date.';
+        }
         return '';
       case 'endDate':
         if (!value) return 'End date is required';
-        if (formData.startDate && new Date(value) < new Date(formData.startDate)) {
-          return 'End date must be after start date';
+        const endDate = new Date(value);
+        endDate.setHours(0, 0, 0, 0);
+        if (endDate < today) {
+          return 'End date cannot be in the past. Please select today or a future date.';
+        }
+        if (formData.startDate && endDate < new Date(formData.startDate)) {
+          return 'End date must be on or after start date';
+        }
+        return '';
+      case 'startTime':
+        if (value && formData.startDate) {
+          const eventDate = new Date(formData.startDate);
+          eventDate.setHours(0, 0, 0, 0);
+          const isToday = eventDate.getTime() === today.getTime();
+          
+          if (isToday && value) {
+            const [hours, minutes] = value.split(':');
+            const selectedTime = new Date();
+            selectedTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+            const now = new Date();
+            
+            if (selectedTime < now) {
+              return 'Start time cannot be in the past for today\'s events';
+            }
+          }
+        }
+        return '';
+      case 'endTime':
+        if (value && formData.startTime && formData.startDate === formData.endDate) {
+          if (value <= formData.startTime) {
+            return 'End time must be after start time';
+          }
         }
         return '';
       default:
@@ -94,14 +138,34 @@ export default function Calendar() {
   };
 
   const validateForm = () => {
-    const errors = [];
-    if (!formData.title.trim()) errors.push('Event title is required');
-    if (!formData.eventType) errors.push('Event type is required');
-    if (!formData.startDate) errors.push('Start date is required');
-    if (!formData.endDate) errors.push('End date is required');
-    if (formData.startDate && formData.endDate && new Date(formData.startDate) > new Date(formData.endDate)) {
-      errors.push('End date must be after start date');
-    }
+    const errors = {};
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Title validation
+    const titleError = validateField('title', formData.title);
+    if (titleError) errors.title = titleError;
+    
+    // Event type validation
+    const typeError = validateField('eventType', formData.eventType);
+    if (typeError) errors.eventType = typeError;
+    
+    // Start date validation
+    const startDateError = validateField('startDate', formData.startDate);
+    if (startDateError) errors.startDate = startDateError;
+    
+    // End date validation
+    const endDateError = validateField('endDate', formData.endDate);
+    if (endDateError) errors.endDate = endDateError;
+    
+    // Start time validation
+    const startTimeError = validateField('startTime', formData.startTime);
+    if (startTimeError) errors.startTime = startTimeError;
+    
+    // End time validation
+    const endTimeError = validateField('endTime', formData.endTime);
+    if (endTimeError) errors.endTime = endTimeError;
+    
     return errors;
   };
 
@@ -109,11 +173,15 @@ export default function Calendar() {
     e.preventDefault();
     setSubmitting(true);
     setError('');
+    setFieldErrors({});
 
     const validationErrors = validateForm();
-    if (validationErrors.length > 0) {
-      toast.error(validationErrors.join('. '));
+    if (Object.keys(validationErrors).length > 0) {
+      setFieldErrors(validationErrors);
+      const firstError = Object.values(validationErrors)[0];
+      toast.error(firstError);
       setSubmitting(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
 
@@ -138,11 +206,15 @@ export default function Calendar() {
     e.preventDefault();
     setSubmitting(true);
     setError('');
+    setFieldErrors({});
 
     const validationErrors = validateForm();
-    if (validationErrors.length > 0) {
-      toast.error(validationErrors.join('. '));
+    if (Object.keys(validationErrors).length > 0) {
+      setFieldErrors(validationErrors);
+      const firstError = Object.values(validationErrors)[0];
+      toast.error(firstError);
       setSubmitting(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
 
@@ -246,38 +318,72 @@ export default function Calendar() {
   const getFilteredEvents = () => {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    today.setHours(0, 0, 0, 0);
     
-    return events.filter(event => {
+    console.log('Filtering events with filter:', timeFilter);
+    console.log('Total events to filter:', events.length);
+    
+    const filtered = events.filter(event => {
       const eventStart = new Date(event.startDate);
+      eventStart.setHours(0, 0, 0, 0);
+      
       const eventEnd = new Date(event.endDate);
+      eventEnd.setHours(23, 59, 59, 999);
+      
+      console.log(`Event: ${event.title}, Start: ${eventStart.toDateString()}, End: ${eventEnd.toDateString()}`);
+      
+      let matches = false;
       
       switch(timeFilter) {
+        case 'all':
+          // Show all events (today and future)
+          matches = eventEnd >= today;
+          console.log(`  All filter: ${matches}`);
+          return matches;
+
         case 'today':
-          // Events that occur today
-          return eventStart <= today && eventEnd >= today;
+          // Events that occur today (start date is today OR event is ongoing and includes today)
+          matches = (eventStart.getTime() === today.getTime()) || 
+                    (eventStart <= today && eventEnd >= today);
+          console.log(`  Today filter: ${matches}`);
+          return matches;
           
         case 'week':
           // Events within the next 7 days
           const weekEnd = new Date(today);
           weekEnd.setDate(weekEnd.getDate() + 7);
-          return eventStart <= weekEnd && eventEnd >= today;
+          weekEnd.setHours(23, 59, 59, 999);
+          matches = eventStart <= weekEnd && eventEnd >= today;
+          console.log(`  Week filter: ${matches}`);
+          return matches;
           
         case 'month':
           // Events within this month
           const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+          monthStart.setHours(0, 0, 0, 0);
           const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-          return (eventStart <= monthEnd && eventEnd >= monthStart);
+          monthEnd.setHours(23, 59, 59, 999);
+          matches = (eventStart <= monthEnd && eventEnd >= monthStart);
+          console.log(`  Month filter: ${matches}, monthStart: ${monthStart.toDateString()}, monthEnd: ${monthEnd.toDateString()}`);
+          return matches;
           
         case 'year':
           // Events within this year
           const yearStart = new Date(now.getFullYear(), 0, 1);
+          yearStart.setHours(0, 0, 0, 0);
           const yearEnd = new Date(now.getFullYear(), 11, 31);
-          return (eventStart <= yearEnd && eventEnd >= yearStart);
+          yearEnd.setHours(23, 59, 59, 999);
+          matches = (eventStart <= yearEnd && eventEnd >= yearStart);
+          console.log(`  Year filter: ${matches}`);
+          return matches;
           
         default:
           return true;
       }
     });
+    
+    console.log('Filtered events count:', filtered.length);
+    return filtered;
   };
 
   const filteredEvents = getFilteredEvents();
@@ -352,6 +458,16 @@ export default function Calendar() {
               </p>
               <div className="flex flex-wrap gap-3">
                 <button
+                  onClick={() => setTimeFilter('all')}
+                  className={`px-6 py-2.5 rounded-full font-bold transition-all transform hover:scale-105 ${
+                    timeFilter === 'all'
+                      ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg'
+                      : 'bg-white text-gray-700 border-2 border-gray-300 hover:border-purple-400'
+                  }`}
+                >
+                  All Events
+                </button>
+                <button
                   onClick={() => setTimeFilter('today')}
                   className={`px-6 py-2.5 rounded-full font-bold transition-all transform hover:scale-105 ${
                     timeFilter === 'today'
@@ -369,7 +485,7 @@ export default function Calendar() {
                       : 'bg-white text-gray-700 border-2 border-gray-300 hover:border-purple-400'
                   }`}
                 >
-                  Week
+                  This Week
                 </button>
                 <button
                   onClick={() => setTimeFilter('month')}
@@ -379,7 +495,7 @@ export default function Calendar() {
                       : 'bg-white text-gray-700 border-2 border-gray-300 hover:border-purple-400'
                   }`}
                 >
-                  Month
+                  This Month
                 </button>
                 <button
                   onClick={() => setTimeFilter('year')}
@@ -389,7 +505,7 @@ export default function Calendar() {
                       : 'bg-white text-gray-700 border-2 border-gray-300 hover:border-purple-400'
                   }`}
                 >
-                  Year
+                  This Year
                 </button>
               </div>
             </div>
@@ -419,12 +535,13 @@ export default function Calendar() {
               <div className="mb-4 flex items-center justify-between">
                 <p className="text-gray-600 font-semibold">
                   Showing <span className="text-cyan-600 font-bold">{filteredEvents.length}</span> {filteredEvents.length === 1 ? 'event' : 'events'}
+                  {timeFilter === 'all' && ''}
                   {timeFilter === 'today' && ' today'}
                   {timeFilter === 'week' && ' this week'}
                   {timeFilter === 'month' && ' this month'}
                   {timeFilter === 'year' && ' this year'}
                 </p>
-                {filteredEvents.length < events.length && (
+                {filteredEvents.length < events.length && timeFilter !== 'all' && (
                   <p className="text-sm text-gray-500">
                     ({events.length} total events)
                   </p>
@@ -597,6 +714,7 @@ export default function Calendar() {
                       name="startDate"
                       value={formData.startDate}
                       onChange={handleInputChange}
+                      min={new Date().toISOString().split('T')[0]}
                       className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:outline-none ${
                         fieldErrors.startDate 
                           ? 'border-red-500 focus:border-red-500 focus:ring-red-200' 
@@ -607,6 +725,7 @@ export default function Calendar() {
                     {fieldErrors.startDate && (
                       <p className="text-red-500 text-xs mt-1 font-semibold">⚠️ {fieldErrors.startDate}</p>
                     )}
+                    <p className="text-xs text-gray-500 mt-1">Only today or future dates allowed</p>
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">
@@ -617,6 +736,7 @@ export default function Calendar() {
                       name="endDate"
                       value={formData.endDate}
                       onChange={handleInputChange}
+                      min={formData.startDate || new Date().toISOString().split('T')[0]}
                       className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:outline-none ${
                         fieldErrors.endDate 
                           ? 'border-red-500 focus:border-red-500 focus:ring-red-200' 
@@ -627,6 +747,7 @@ export default function Calendar() {
                     {fieldErrors.endDate && (
                       <p className="text-red-500 text-xs mt-1 font-semibold">⚠️ {fieldErrors.endDate}</p>
                     )}
+                    <p className="text-xs text-gray-500 mt-1">Must be on or after start date</p>
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">
@@ -637,8 +758,15 @@ export default function Calendar() {
                       name="startTime"
                       value={formData.startTime}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-cyan-500 focus:ring-4 focus:ring-cyan-200 focus:outline-none"
+                      className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:outline-none ${
+                        fieldErrors.startTime 
+                          ? 'border-red-500 focus:border-red-500 focus:ring-red-200' 
+                          : 'border-gray-200 focus:border-cyan-500 focus:ring-cyan-200'
+                      }`}
                     />
+                    {fieldErrors.startTime && (
+                      <p className="text-red-500 text-xs mt-1 font-semibold">⚠️ {fieldErrors.startTime}</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">
@@ -649,8 +777,15 @@ export default function Calendar() {
                       name="endTime"
                       value={formData.endTime}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-cyan-500 focus:ring-4 focus:ring-cyan-200 focus:outline-none"
+                      className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:outline-none ${
+                        fieldErrors.endTime 
+                          ? 'border-red-500 focus:border-red-500 focus:ring-red-200' 
+                          : 'border-gray-200 focus:border-cyan-500 focus:ring-cyan-200'
+                      }`}
                     />
+                    {fieldErrors.endTime && (
+                      <p className="text-red-500 text-xs mt-1 font-semibold">⚠️ {fieldErrors.endTime}</p>
+                    )}
                   </div>
                   <div className="md:col-span-2">
                     <label className="block text-sm font-bold text-gray-700 mb-2">
@@ -730,9 +865,17 @@ export default function Calendar() {
                       name="title"
                       value={formData.title}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-200 focus:outline-none"
+                      className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:outline-none ${
+                        fieldErrors.title 
+                          ? 'border-red-500 focus:border-red-500 focus:ring-red-200' 
+                          : 'border-gray-200 focus:border-blue-500 focus:ring-blue-200'
+                      }`}
+                      placeholder="e.g., Annual Sports Day"
                       required
                     />
+                    {fieldErrors.title && (
+                      <p className="text-red-500 text-xs mt-1 font-semibold">⚠️ {fieldErrors.title}</p>
+                    )}
                   </div>
                   <div className="md:col-span-2">
                     <label className="block text-sm font-bold text-gray-700 mb-2">
@@ -754,7 +897,11 @@ export default function Calendar() {
                       name="eventType"
                       value={formData.eventType}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-200 focus:outline-none"
+                      className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:outline-none ${
+                        fieldErrors.eventType 
+                          ? 'border-red-500 focus:border-red-500 focus:ring-red-200' 
+                          : 'border-gray-200 focus:border-blue-500 focus:ring-blue-200'
+                      }`}
                       required
                     >
                       <option value="">Select Type</option>
@@ -766,6 +913,9 @@ export default function Calendar() {
                       <option value="academic">Academic</option>
                       <option value="other">Other</option>
                     </select>
+                    {fieldErrors.eventType && (
+                      <p className="text-red-500 text-xs mt-1 font-semibold">⚠️ {fieldErrors.eventType}</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">
@@ -792,9 +942,18 @@ export default function Calendar() {
                       name="startDate"
                       value={formData.startDate}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-200 focus:outline-none"
+                      min={new Date().toISOString().split('T')[0]}
+                      className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:outline-none ${
+                        fieldErrors.startDate 
+                          ? 'border-red-500 focus:border-red-500 focus:ring-red-200' 
+                          : 'border-gray-200 focus:border-blue-500 focus:ring-blue-200'
+                      }`}
                       required
                     />
+                    {fieldErrors.startDate && (
+                      <p className="text-red-500 text-xs mt-1 font-semibold">⚠️ {fieldErrors.startDate}</p>
+                    )}
+                    <p className="text-xs text-gray-500 mt-1">Only today or future dates allowed</p>
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">
@@ -805,9 +964,18 @@ export default function Calendar() {
                       name="endDate"
                       value={formData.endDate}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-200 focus:outline-none"
+                      min={formData.startDate || new Date().toISOString().split('T')[0]}
+                      className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:outline-none ${
+                        fieldErrors.endDate 
+                          ? 'border-red-500 focus:border-red-500 focus:ring-red-200' 
+                          : 'border-gray-200 focus:border-blue-500 focus:ring-blue-200'
+                      }`}
                       required
                     />
+                    {fieldErrors.endDate && (
+                      <p className="text-red-500 text-xs mt-1 font-semibold">⚠️ {fieldErrors.endDate}</p>
+                    )}
+                    <p className="text-xs text-gray-500 mt-1">Must be on or after start date</p>
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">

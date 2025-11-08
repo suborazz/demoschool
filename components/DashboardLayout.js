@@ -2,6 +2,7 @@ import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import { FaSignOutAlt, FaHome } from 'react-icons/fa';
 import Link from 'next/link';
+import NotificationBell from './NotificationBell';
 
 const DashboardLayout = ({ children }) => {
   const { user, logout } = useAuth();
@@ -34,6 +35,9 @@ const DashboardLayout = ({ children }) => {
               <Link href="/" className="md:hidden flex items-center text-gray-600 hover:text-gray-900 p-2">
                 <FaHome className="text-xl" />
               </Link>
+
+              {/* Notification Bell */}
+              <NotificationBell />
               
               {/* User Info */}
               <div className="flex items-center gap-2 min-w-0">

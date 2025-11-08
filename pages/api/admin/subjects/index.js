@@ -51,16 +51,79 @@ export default async function handler(req, res) {
         passingMarks
       } = req.body;
 
-      // Validation
+      // Comprehensive Validation
+      const validationErrors = [];
+
+      // Name validation
       if (!name || !name.trim()) {
-        return res.status(400).json({ success: false, message: 'Subject name is required' });
+        validationErrors.push('Subject name is required');
+      } else {
+        if (name.trim().length < 2) {
+          validationErrors.push('Subject name must be at least 2 characters');
+        }
+        if (name.trim().length > 100) {
+          validationErrors.push('Subject name cannot exceed 100 characters');
+        }
       }
+
+      // Code validation
       if (!code || !code.trim()) {
-        return res.status(400).json({ success: false, message: 'Subject code is required' });
+        validationErrors.push('Subject code is required');
+      } else {
+        if (code.trim().length < 2) {
+          validationErrors.push('Subject code must be at least 2 characters');
+        }
+        if (code.trim().length > 20) {
+          validationErrors.push('Subject code cannot exceed 20 characters');
+        }
+        if (!/^[A-Z0-9-_]+$/i.test(code.trim())) {
+          validationErrors.push('Subject code can only contain letters, numbers, hyphens, and underscores');
+        }
+      }
+
+      // Category validation
+      if (!category) {
+        validationErrors.push('Category is required');
+      } else {
+        const validCategories = ['Core', 'Elective', 'Language', 'Science', 'Arts', 'Sports', 'Co-curricular'];
+        if (!validCategories.includes(category)) {
+          validationErrors.push('Invalid category');
+        }
+      }
+
+      // Total marks validation
+      if (!totalMarks) {
+        validationErrors.push('Total marks is required');
+      } else {
+        if (totalMarks <= 0) {
+          validationErrors.push('Total marks must be greater than 0');
+        }
+        if (totalMarks > 1000) {
+          validationErrors.push('Total marks cannot exceed 1000');
+        }
+      }
+
+      // Passing marks validation
+      if (passingMarks === undefined || passingMarks === null) {
+        validationErrors.push('Passing marks is required');
+      } else {
+        if (passingMarks < 0) {
+          validationErrors.push('Passing marks cannot be negative');
+        }
+        if (parseInt(passingMarks) > parseInt(totalMarks)) {
+          validationErrors.push('Passing marks cannot exceed total marks');
+        }
+      }
+
+      if (validationErrors.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: validationErrors.join('. ')
+        });
       }
 
       // Check if code already exists
-      const existingSubject = await Subject.findOne({ code: code.toUpperCase() });
+      const existingSubject = await Subject.findOne({ code: code.toUpperCase().trim() });
       if (existingSubject) {
         return res.status(400).json({
           success: false,

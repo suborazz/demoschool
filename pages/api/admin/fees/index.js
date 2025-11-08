@@ -69,14 +69,50 @@ export default async function handler(req, res) {
         remarks
       } = req.body;
 
-      // Validation
+      // Comprehensive Validation
       const validationErrors = [];
 
-      if (!studentId) validationErrors.push('Student is required');
-      if (!feeType) validationErrors.push('Fee type is required');
-      if (!totalAmount || totalAmount <= 0) validationErrors.push('Total amount must be greater than 0');
-      if (!dueDate) validationErrors.push('Due date is required');
-      if (!academicYear) validationErrors.push('Academic year is required');
+      if (!studentId) {
+        validationErrors.push('Student is required');
+      }
+      
+      if (!feeType) {
+        validationErrors.push('Fee type is required');
+      } else {
+        const validFeeTypes = ['Tuition', 'Admission', 'Exam', 'Transport', 'Library', 'Sports', 'Laboratory', 'Annual', 'Other'];
+        if (!validFeeTypes.includes(feeType)) {
+          validationErrors.push('Invalid fee type');
+        }
+      }
+      
+      if (!totalAmount) {
+        validationErrors.push('Total amount is required');
+      } else if (totalAmount <= 0) {
+        validationErrors.push('Total amount must be greater than 0');
+      } else if (totalAmount > 10000000) {
+        validationErrors.push('Total amount cannot exceed ₹1 Crore');
+      }
+      
+      if (!dueDate) {
+        validationErrors.push('Due date is required');
+      } else {
+        const dueDateObj = new Date(dueDate);
+        const oneYearFromNow = new Date();
+        oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+        if (dueDateObj > oneYearFromNow) {
+          validationErrors.push('Due date cannot be more than 1 year in the future');
+        }
+      }
+      
+      if (!academicYear) {
+        validationErrors.push('Academic year is required');
+      } else {
+        const currentYear = new Date().getFullYear();
+        const yearNum = parseInt(academicYear);
+        if (yearNum < currentYear - 2 || yearNum > currentYear + 1) {
+          validationErrors.push('Academic year must be within 2 years of current year');
+        }
+      }
 
       if (validationErrors.length > 0) {
         return res.status(400).json({

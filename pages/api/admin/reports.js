@@ -40,15 +40,51 @@ export default async function handler(req, res) {
     // Get date range from query params
     const { dateRange = 'month', startDate, endDate } = req.query;
     
+    // Validation for custom date range
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      
+      // Validate start date before end date
+      if (start > end) {
+        return res.status(400).json({
+          success: false,
+          message: 'Start date must be before or equal to end date'
+        });
+      }
+      
+      // Limit to 1 year range
+      const daysDiff = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+      if (daysDiff > 365) {
+        return res.status(400).json({
+          success: false,
+          message: 'Date range cannot exceed 1 year (365 days)'
+        });
+      }
+    }
+    
+    // If one date is provided, both must be provided
+    if ((startDate && !endDate) || (!startDate && endDate)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Both start date and end date are required for custom date range'
+      });
+    }
+    
     // Calculate date range
     let dateFilter = {};
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
     if (startDate && endDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      
       dateFilter = {
-        $gte: new Date(startDate),
-        $lt: new Date(new Date(endDate).setHours(23, 59, 59, 999))
+        $gte: start,
+        $lte: end
       };
     } else {
       const rangeStart = new Date(today);

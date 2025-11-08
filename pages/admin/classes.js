@@ -434,6 +434,19 @@ export default function ClassesManagement() {
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Required Fields Notice */}
+                <div className="bg-indigo-50 border-2 border-indigo-200 rounded-xl p-4">
+                  <p className="text-sm font-bold text-indigo-800 mb-2">📋 Required Fields:</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-indigo-700">
+                    <div>✓ Class Name (min 2 characters)</div>
+                    <div>✓ Grade (1-12)</div>
+                    <div>✓ Capacity (min 1 student)</div>
+                  </div>
+                  <p className="text-xs text-indigo-600 mt-2">
+                    💡 <span className="text-red-500">*</span> indicates required fields
+                  </p>
+                </div>
+
                 {error && (
                   <div className="bg-red-50 border-2 border-red-500 rounded-xl p-4 flex items-center gap-3">
                     <span className="text-xl">⚠️</span>
@@ -635,6 +648,19 @@ export default function ClassesManagement() {
               </div>
 
               <form onSubmit={handleEdit} className="space-y-4">
+                {/* Required Fields Notice */}
+                <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
+                  <p className="text-sm font-bold text-blue-800 mb-2">📋 Required Fields:</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-blue-700">
+                    <div>✓ Class Name (min 2 characters)</div>
+                    <div>✓ Grade (1-12)</div>
+                    <div>✓ Capacity (min 1 student)</div>
+                  </div>
+                  <p className="text-xs text-blue-600 mt-2">
+                    💡 <span className="text-red-500">*</span> indicates required fields
+                  </p>
+                </div>
+
                 {error && (
                   <div className="bg-red-50 border-2 border-red-500 rounded-xl p-4 flex items-center gap-3">
                     <span className="text-xl">⚠️</span>
@@ -652,9 +678,19 @@ export default function ClassesManagement() {
                       name="name"
                       value={formData.name}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-200 focus:outline-none"
+                      className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:outline-none transition-all ${
+                        fieldErrors.name 
+                          ? 'border-red-500 focus:border-red-500 focus:ring-red-200' 
+                          : 'border-gray-200 focus:border-blue-500 focus:ring-blue-200'
+                      }`}
+                      placeholder="e.g., Class 10-A"
                       required
                     />
+                    {fieldErrors.name && (
+                      <p className="text-red-500 text-xs mt-1 font-semibold flex items-center gap-1">
+                        <span>⚠️</span> {fieldErrors.name}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">
@@ -665,11 +701,21 @@ export default function ClassesManagement() {
                       name="grade"
                       value={formData.grade}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-200 focus:outline-none"
+                      className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:outline-none transition-all ${
+                        fieldErrors.grade 
+                          ? 'border-red-500 focus:border-red-500 focus:ring-red-200' 
+                          : 'border-gray-200 focus:border-blue-500 focus:ring-blue-200'
+                      }`}
+                      placeholder="e.g., 10"
                       min="1"
                       max="12"
                       required
                     />
+                    {fieldErrors.grade && (
+                      <p className="text-red-500 text-xs mt-1 font-semibold flex items-center gap-1">
+                        <span>⚠️</span> {fieldErrors.grade}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">
@@ -685,19 +731,31 @@ export default function ClassesManagement() {
                         <option key={sec} value={sec}>{sec}</option>
                       ))}
                     </select>
+                    <p className="text-xs text-gray-500 mt-1">Default: A</p>
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">
-                      Capacity
+                      Capacity <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="number"
                       name="capacity"
                       value={formData.capacity}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-200 focus:outline-none"
+                      className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:outline-none transition-all ${
+                        fieldErrors.capacity 
+                          ? 'border-red-500 focus:border-red-500 focus:ring-red-200' 
+                          : 'border-gray-200 focus:border-blue-500 focus:ring-blue-200'
+                      }`}
+                      placeholder="40"
                       min="1"
+                      required
                     />
+                    {fieldErrors.capacity && (
+                      <p className="text-red-500 text-xs mt-1 font-semibold flex items-center gap-1">
+                        <span>⚠️</span> {fieldErrors.capacity}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">
@@ -709,7 +767,9 @@ export default function ClassesManagement() {
                       value={formData.room}
                       onChange={handleInputChange}
                       className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-200 focus:outline-none"
+                      placeholder="e.g., 101"
                     />
+                    <p className="text-xs text-gray-500 mt-1">Optional - Physical room number</p>
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">
@@ -721,7 +781,9 @@ export default function ClassesManagement() {
                       value={formData.academicYear}
                       onChange={handleInputChange}
                       className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-200 focus:outline-none"
+                      placeholder="2024"
                     />
+                    <p className="text-xs text-gray-500 mt-1">Default: Current year</p>
                   </div>
                   <div className="md:col-span-2">
                     <label className="block text-sm font-bold text-gray-700 mb-2">

@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import axios from 'axios';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import DashboardLayout from '../../components/DashboardLayout';
+import UpcomingEvents from '../../components/UpcomingEvents';
 import { 
   FaClipboardCheck, FaTrophy, FaBook, FaCalendar,
   FaChartLine, FaStar, FaAward, FaClock, FaCheckCircle,
@@ -410,6 +411,9 @@ export default function StudentDashboard() {
                   </button>
                 </div>
               </div>
+
+              {/* Upcoming Events */}
+              <UpcomingEvents limit={5} />
             </div>
           </div>
 

@@ -6,7 +6,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { 
   FaBell, FaPlus, FaUsers, FaPaperPlane, FaCheckCircle, 
-  FaExclamationCircle, FaInfoCircle, FaTimes, FaSave, FaSpinner
+  FaExclamationCircle, FaInfoCircle, FaTimes, FaSave, FaSpinner, FaTrash
 } from 'react-icons/fa';
 
 export default function Notifications() {
@@ -136,6 +136,23 @@ export default function Notifications() {
     });
     setFieldErrors({});
     setError('');
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm('Are you sure you want to delete this notification?')) {
+      return;
+    }
+
+    try {
+      await axios.delete(`/api/admin/notifications?id=${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success('Notification deleted successfully!');
+      fetchNotifications();
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+      toast.error('Failed to delete notification');
+    }
   };
 
   const getNotificationIcon = (type) => {
@@ -292,6 +309,13 @@ export default function Notifications() {
                           </div>
                         </div>
                       </div>
+                      <button
+                        onClick={() => handleDelete(notification._id)}
+                        className="bg-white/20 hover:bg-red-500 p-3 rounded-xl transition-all hover:scale-110 flex-shrink-0"
+                        title="Delete notification"
+                      >
+                        <FaTrash />
+                      </button>
                     </div>
                   </div>
                 );

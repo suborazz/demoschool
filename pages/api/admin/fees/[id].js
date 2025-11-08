@@ -38,18 +38,38 @@ export default async function handler(req, res) {
         remarks
       } = req.body;
 
-      // Validation
-      if (!paymentAmount || paymentAmount <= 0) {
-        return res.status(400).json({
-          success: false,
-          message: 'Payment amount must be greater than 0'
-        });
+      // Comprehensive Validation
+      const validationErrors = [];
+
+      if (!paymentAmount) {
+        validationErrors.push('Payment amount is required');
+      } else if (paymentAmount <= 0) {
+        validationErrors.push('Payment amount must be greater than 0');
       }
 
       if (!paymentMethod) {
+        validationErrors.push('Payment method is required');
+      } else {
+        const validMethods = ['cash', 'card', 'upi', 'netbanking', 'razorpay', 'other'];
+        if (!validMethods.includes(paymentMethod)) {
+          validationErrors.push('Invalid payment method');
+        }
+        
+        // Transaction ID required for digital payments
+        const digitalPayments = ['card', 'upi', 'netbanking', 'razorpay'];
+        if (digitalPayments.includes(paymentMethod) && !transactionId) {
+          validationErrors.push('Transaction ID is required for digital payment methods');
+        }
+        
+        if (transactionId && transactionId.length < 4) {
+          validationErrors.push('Transaction ID must be at least 4 characters');
+        }
+      }
+
+      if (validationErrors.length > 0) {
         return res.status(400).json({
           success: false,
-          message: 'Payment method is required'
+          message: validationErrors.join('. ')
         });
       }
 

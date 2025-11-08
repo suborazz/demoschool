@@ -70,18 +70,55 @@ export default async function handler(req, res) {
       } = req.body;
 
       // Validation
-      const validationErrors = [];
-
-      if (!title || !title.trim()) validationErrors.push('Notification title is required');
-      if (!message || !message.trim()) validationErrors.push('Message is required');
-      if (!type) validationErrors.push('Type is required');
-      if (!priority) validationErrors.push('Priority is required');
-      if (!recipients) validationErrors.push('Recipients are required');
-
-      if (validationErrors.length > 0) {
+      if (!title || !title.trim()) {
         return res.status(400).json({
           success: false,
-          message: validationErrors.join('. ')
+          message: 'Notification title is required'
+        });
+      }
+
+      if (title.trim().length < 3) {
+        return res.status(400).json({
+          success: false,
+          message: 'Title must be at least 3 characters'
+        });
+      }
+
+      if (!message || !message.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Message is required'
+        });
+      }
+
+      if (message.trim().length < 10) {
+        return res.status(400).json({
+          success: false,
+          message: 'Message must be at least 10 characters'
+        });
+      }
+
+      const validTypes = ['announcement', 'event', 'fee', 'grade', 'attendance', 'leave', 'general', 'urgent'];
+      if (type && !validTypes.includes(type)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid notification type'
+        });
+      }
+
+      const validPriorities = ['low', 'medium', 'high', 'urgent'];
+      if (priority && !validPriorities.includes(priority)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid priority level'
+        });
+      }
+
+      const validRecipients = ['all', 'admin', 'staff', 'parents', 'students'];
+      if (!recipients || !validRecipients.includes(recipients)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid recipients selection'
         });
       }
 
@@ -89,8 +126,8 @@ export default async function handler(req, res) {
       const newNotification = await Notification.create({
         title: title.trim(),
         message: message.trim(),
-        type,
-        priority,
+        type: type || 'general',
+        priority: priority || 'medium',
         recipients,
         specificRecipients: specificRecipients || [],
         createdBy: userId,
@@ -102,8 +139,27 @@ export default async function handler(req, res) {
 
       return res.status(201).json({
         success: true,
-        message: 'Notification sent successfully',
+        message: `Notification sent successfully to ${recipients}`,
         data: populatedNotification
+      });
+    }
+
+    // DELETE - Delete notification
+    if (req.method === 'DELETE') {
+      const { id } = req.query;
+
+      if (!id) {
+        return res.status(400).json({
+          success: false,
+          message: 'Notification ID is required'
+        });
+      }
+
+      await Notification.findByIdAndDelete(id);
+
+      return res.json({
+        success: true,
+        message: 'Notification deleted successfully'
       });
     }
 

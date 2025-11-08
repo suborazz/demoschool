@@ -46,15 +46,82 @@ export default async function handler(req, res) {
         return res.status(404).json({ success: false, message: 'Subject not found' });
       }
 
-      // If code is being changed, check if new code already exists
-      if (code && code.toUpperCase() !== subject.code) {
-        const existingSubject = await Subject.findOne({ code: code.toUpperCase() });
-        if (existingSubject) {
-          return res.status(400).json({
-            success: false,
-            message: 'Subject code already exists. Please use a different code.'
-          });
+      // Comprehensive Validation
+      const validationErrors = [];
+
+      // Name validation
+      if (name !== undefined) {
+        if (!name || !name.trim()) {
+          validationErrors.push('Subject name is required');
+        } else {
+          if (name.trim().length < 2) {
+            validationErrors.push('Subject name must be at least 2 characters');
+          }
+          if (name.trim().length > 100) {
+            validationErrors.push('Subject name cannot exceed 100 characters');
+          }
         }
+      }
+
+      // Code validation
+      if (code !== undefined) {
+        if (!code || !code.trim()) {
+          validationErrors.push('Subject code is required');
+        } else {
+          if (code.trim().length < 2) {
+            validationErrors.push('Subject code must be at least 2 characters');
+          }
+          if (code.trim().length > 20) {
+            validationErrors.push('Subject code cannot exceed 20 characters');
+          }
+          if (!/^[A-Z0-9-_]+$/i.test(code.trim())) {
+            validationErrors.push('Subject code can only contain letters, numbers, hyphens, and underscores');
+          }
+
+          // Check if new code already exists (different from current subject)
+          if (code.toUpperCase().trim() !== subject.code) {
+            const existingSubject = await Subject.findOne({ code: code.toUpperCase().trim() });
+            if (existingSubject) {
+              validationErrors.push('Subject code already exists. Please use a different code.');
+            }
+          }
+        }
+      }
+
+      // Category validation
+      if (category !== undefined && category) {
+        const validCategories = ['Core', 'Elective', 'Language', 'Science', 'Arts', 'Sports', 'Co-curricular'];
+        if (!validCategories.includes(category)) {
+          validationErrors.push('Invalid category');
+        }
+      }
+
+      // Total marks validation
+      if (totalMarks !== undefined) {
+        if (totalMarks <= 0) {
+          validationErrors.push('Total marks must be greater than 0');
+        }
+        if (totalMarks > 1000) {
+          validationErrors.push('Total marks cannot exceed 1000');
+        }
+      }
+
+      // Passing marks validation
+      if (passingMarks !== undefined) {
+        if (passingMarks < 0) {
+          validationErrors.push('Passing marks cannot be negative');
+        }
+        const finalTotalMarks = totalMarks !== undefined ? totalMarks : subject.totalMarks;
+        if (parseInt(passingMarks) > parseInt(finalTotalMarks)) {
+          validationErrors.push('Passing marks cannot exceed total marks');
+        }
+      }
+
+      if (validationErrors.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: validationErrors.join('. ')
+        });
       }
 
       // Update subject

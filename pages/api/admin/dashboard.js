@@ -38,6 +38,30 @@ export default async function handler(req, res) {
       return res.status(403).json({ success: false, message: 'Access denied. Admin only.' });
     }
 
+    // Get time range from query parameter
+    const { timeRange = 'month' } = req.query;
+    
+    // Calculate date range based on filter
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    let startDate = new Date(today);
+    
+    switch (timeRange) {
+      case 'today':
+        // Already set to today
+        break;
+      case 'week':
+        startDate.setDate(today.getDate() - 7);
+        break;
+      case 'year':
+        startDate.setFullYear(today.getFullYear() - 1);
+        break;
+      case 'month':
+      default:
+        startDate.setMonth(today.getMonth() - 1);
+        break;
+    }
+
     // Fetch real data from database
     const totalStudents = await Student.countDocuments();
     const totalStaff = await Staff.countDocuments();
@@ -45,9 +69,7 @@ export default async function handler(req, res) {
     const totalClasses = await Class.countDocuments();
     const totalSubjects = await Subject.countDocuments();
 
-    // Get today's attendance
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Get today's attendance (reuse the today variable already defined)
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
@@ -69,19 +91,18 @@ export default async function handler(req, res) {
 
     const totalPendingFees = pendingFees.length > 0 ? pendingFees[0].total : 0;
 
-    // Get this month's revenue
-    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    const monthlyRevenue = await Fee.aggregate([
+    // Get revenue for selected time range
+    const revenueForRange = await Fee.aggregate([
       { 
         $match: { 
           paymentStatus: 'paid',
-          paymentDate: { $gte: startOfMonth }
+          paymentDate: { $gte: startDate }
         } 
       },
       { $group: { _id: null, total: { $sum: '$amount' } } }
     ]);
 
-    const totalMonthlyRevenue = monthlyRevenue.length > 0 ? monthlyRevenue[0].total : 0;
+    const totalRevenue = revenueForRange.length > 0 ? revenueForRange[0].total : 0;
 
     // Calculate attendance rate
     const attendanceRate = totalStudents > 0 
@@ -95,27 +116,115 @@ export default async function handler(req, res) {
       ? ((paidFees / totalFees) * 100).toFixed(0)
       : 0;
 
+    // Get recent enrollments for the selected time range
+    const recentStudents = await Student.countDocuments({
+      createdAt: { $gte: startDate }
+    });
+
+    const recentStaff = await Staff.countDocuments({
+      createdAt: { $gte: startDate }
+    });
+
+    // Get class occupancy
+    const classesWithCounts = await Promise.all(
+      (await Class.find().limit(5)).map(async (cls) => {
+        const studentCount = await Student.countDocuments({ class: cls._id });
+        return {
+          name: cls.name,
+          grade: cls.grade,
+          section: cls.section,
+          students: studentCount,
+          capacity: cls.capacity,
+          occupancy: cls.capacity > 0 ? ((studentCount / cls.capacity) * 100).toFixed(0) : 0
+        };
+      })
+    );
+
+    // Get recent activities for the selected time range
+    const recentActivities = [];
+    
+    // Add recent student enrollments within the time range
+    const latestStudents = await Student.find({
+      createdAt: { $gte: startDate }
+    })
+      .populate('user', 'firstName lastName')
+      .sort({ createdAt: -1 })
+      .limit(5);
+    
+    latestStudents.forEach(student => {
+      if (student.user) {
+        recentActivities.push({
+          type: 'enrollment',
+          message: `${student.user.firstName} ${student.user.lastName} enrolled`,
+          time: student.createdAt,
+          icon: 'student'
+        });
+      }
+    });
+
+    // Add recent staff additions within the time range
+    const latestStaff = await Staff.find({
+      createdAt: { $gte: startDate }
+    })
+      .populate('user', 'firstName lastName')
+      .sort({ createdAt: -1 })
+      .limit(5);
+    
+    latestStaff.forEach(staff => {
+      if (staff.user) {
+        recentActivities.push({
+          type: 'staff',
+          message: `${staff.user.firstName} ${staff.user.lastName} joined as ${staff.designation}`,
+          time: staff.createdAt,
+          icon: 'staff'
+        });
+      }
+    });
+
+    // Sort by time and limit to 10
+    recentActivities.sort((a, b) => new Date(b.time) - new Date(a.time));
+    const limitedActivities = recentActivities.slice(0, 10);
+
+    // Generate range label for display
+    const getRangeLabel = () => {
+      switch (timeRange) {
+        case 'today': return 'Today';
+        case 'week': return 'This Week';
+        case 'year': return 'This Year';
+        case 'month':
+        default: return 'This Month';
+      }
+    };
+
     res.json({
       success: true,
       data: {
+        timeRange: timeRange,
+        rangeLabel: getRangeLabel(),
         stats: {
           totalStudents,
           totalStaff,
           totalParents,
           totalClasses,
           totalSubjects,
-          monthlyRevenue: totalMonthlyRevenue,
-          pendingFees: totalPendingFees
+          revenue: totalRevenue,
+          pendingFees: totalPendingFees,
+          recentStudents,
+          recentStaff
         },
         todaySummary: {
           presentStudents: presentStudentsToday,
-          presentStaff: presentStaffToday
+          presentStaff: presentStaffToday,
+          totalStudents,
+          totalStaff
         },
         metrics: {
           attendanceRate: `${attendanceRate}%`,
           feeCollectionRate: `${feeCollectionRate}%`,
-          passRate: '0%' // Calculate this based on your grades logic
-        }
+          passRate: '0%'
+        },
+        classOccupancy: classesWithCounts,
+        recentActivities: limitedActivities
       }
     });
 

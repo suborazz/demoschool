@@ -1,11 +1,26 @@
 import connectDB from '../../../../lib/mongodb';
-import Event from '../../../../models/Event';
 import User from '../../../../models/User';
 import { verify } from 'jsonwebtoken';
+import mongoose from 'mongoose';
+
+const eventSchema = new mongoose.Schema({
+  title: { type: String, required: true, trim: true },
+  description: { type: String, trim: true },
+  eventType: { type: String, enum: ['holiday', 'exam', 'meeting', 'sports', 'cultural', 'academic', 'other'], required: true },
+  startDate: { type: Date, required: true },
+  endDate: { type: Date, required: true },
+  startTime: { type: String },
+  endTime: { type: String },
+  location: { type: String, trim: true },
+  targetAudience: { type: String, enum: ['all', 'students', 'staff', 'parents'], default: 'all' },
+  color: { type: String, default: 'blue' },
+  isPublic: { type: Boolean, default: true },
+  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }
+}, { timestamps: true });
+
+const Event = mongoose.models.Event || mongoose.model('Event', eventSchema);
 
 export default async function handler(req, res) {
-  const { id } = req.query;
-
   try {
     await connectDB();
 
@@ -29,63 +44,63 @@ export default async function handler(req, res) {
       return res.status(403).json({ success: false, message: 'Access denied. Admin only.' });
     }
 
-    // Handle GET request - Get single event
-    if (req.method === 'GET') {
-      const event = await Event.findById(id);
+    const { id } = req.query;
+
+    // PUT - Update event
+    if (req.method === 'PUT') {
+      const { title, description, eventType, startDate, endDate, startTime, endTime, location, targetAudience, color } = req.body;
+
+      // Validate dates are not in the past
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
       
-      if (!event) {
-        return res.status(404).json({
-          success: false,
-          message: 'Event not found'
-        });
+      if (startDate) {
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        
+        if (start < today) {
+          return res.status(400).json({
+            success: false,
+            message: 'Start date cannot be in the past. Please select today or a future date.'
+          });
+        }
       }
 
-      return res.json({
-        success: true,
-        data: event
-      });
-    }
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(0, 0, 0, 0);
+        
+        if (end < today) {
+          return res.status(400).json({
+            success: false,
+            message: 'End date cannot be in the past. Please select today or a future date.'
+          });
+        }
+      }
 
-    // Handle PUT request - Update event
-    if (req.method === 'PUT') {
-      const {
-        title,
-        description,
-        eventType,
-        startDate,
-        endDate,
-        startTime,
-        endTime,
-        location,
-        targetAudience,
-        color
-      } = req.body;
-
-      // Validation
-      if (!title || !eventType || !startDate || !endDate) {
+      if (startDate && endDate && new Date(endDate) < new Date(startDate)) {
         return res.status(400).json({
           success: false,
-          message: 'Title, event type, start date, and end date are required'
+          message: 'End date must be on or after start date'
         });
       }
 
       const event = await Event.findByIdAndUpdate(
         id,
         {
-          title,
-          description,
+          title: title?.trim(),
+          description: description?.trim(),
           eventType,
-          startDate: new Date(startDate),
-          endDate: new Date(endDate),
+          startDate,
+          endDate,
           startTime,
           endTime,
-          location,
-          targetAudience: targetAudience || 'all',
-          color: color || 'blue',
-          updatedBy: userId
+          location: location?.trim(),
+          targetAudience,
+          color
         },
         { new: true, runValidators: true }
-      );
+      ).populate('createdBy', 'firstName lastName');
 
       if (!event) {
         return res.status(404).json({
@@ -101,7 +116,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // Handle DELETE request - Delete event
+    // DELETE - Delete event
     if (req.method === 'DELETE') {
       const event = await Event.findByIdAndDelete(id);
 
@@ -118,17 +133,13 @@ export default async function handler(req, res) {
       });
     }
 
-    // Method not allowed
-    return res.status(405).json({
-      success: false,
-      message: 'Method not allowed'
-    });
+    return res.status(405).json({ success: false, message: 'Method not allowed' });
 
   } catch (error) {
     console.error('Event API Error:', error);
     return res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: 'Server error',
       error: error.message
     });
   }

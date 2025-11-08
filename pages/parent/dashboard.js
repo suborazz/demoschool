@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import DashboardLayout from '../../components/DashboardLayout';
+import UpcomingEvents from '../../components/UpcomingEvents';
 import { 
   FaUserGraduate, FaCheckCircle, FaTrophy, FaMoneyBillWave,
   FaCalendarCheck, FaBook, FaComments, FaChartLine, FaBell,
@@ -356,53 +357,8 @@ export default function ParentDashboard() {
                 </button>
               </div>
 
-              {/* Upcoming Events - Enhanced */}
-              <div className="bg-gradient-to-br from-purple-600 via-pink-500 to-purple-700 rounded-2xl sm:rounded-3xl shadow-2xl p-6 sm:p-8 text-white hover:shadow-purple-500/50 transition-all duration-500 hover:-translate-y-2 relative overflow-hidden">
-                <div className="absolute inset-0 opacity-20">
-                  {[...Array(3)].map((_, i) => (
-                    <div
-                      key={i}
-                      className="absolute bg-white rounded-full"
-                      style={{
-                        width: `${Math.random() * 60 + 30}px`,
-                        height: `${Math.random() * 60 + 30}px`,
-                        top: `${Math.random() * 100}%`,
-                        left: `${Math.random() * 100}%`,
-                      }}
-                    />
-                  ))}
-                </div>
-
-                <div className="relative">
-                  <div className="flex items-center mb-4 sm:mb-6">
-                    <FaBell className="text-3xl sm:text-4xl mr-2 sm:mr-3 animate-bounce-slow" />
-                    <h2 className="text-xl sm:text-2xl font-black">Upcoming</h2>
-                  </div>
-
-                  <div className="space-y-2 sm:space-y-3">
-                    {upcomingEvents.map((event, index) => (
-                      <div
-                        key={index}
-                        className="p-4 sm:p-5 bg-white/10 backdrop-blur-md rounded-xl sm:rounded-2xl hover:bg-white/20 transition-all"
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="px-2 sm:px-3 py-1 bg-white/20 rounded-full text-xs font-black">{event.type}</span>
-                          <FaCalendarCheck className="text-lg sm:text-xl" />
-                        </div>
-                        <p className="font-black text-base sm:text-lg mb-1">{event.event}</p>
-                        <p className="text-xs sm:text-sm opacity-90 flex items-center">
-                          <FaClock className="mr-1 sm:mr-2 flex-shrink-0" />
-                          {event.date}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-
-                  <button className="w-full mt-4 sm:mt-6 bg-white text-purple-600 py-3 rounded-xl sm:rounded-2xl font-black text-sm sm:text-base hover:bg-gray-100 transition-all transform hover:scale-105">
-                    View Full Calendar
-                  </button>
-                </div>
-              </div>
+              {/* Upcoming Events */}
+              <UpcomingEvents limit={5} />
             </div>
           </div>
 

@@ -215,45 +215,69 @@ export default function StudentManagement() {
   const validateField = (name, value) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const phoneRegex = /^[\d\s\+\-\(\)]+$/;
+    const nameRegex = /^[a-zA-Z\s]+$/;
 
     switch (name) {
       case 'firstName':
         if (!value.trim()) return 'First name is required';
         if (value.trim().length < 2) return 'First name must be at least 2 characters';
+        if (value.trim().length > 50) return 'First name must not exceed 50 characters';
+        if (!nameRegex.test(value)) return 'First name should only contain letters';
         return '';
       case 'lastName':
         if (!value.trim()) return 'Last name is required';
         if (value.trim().length < 2) return 'Last name must be at least 2 characters';
+        if (value.trim().length > 50) return 'Last name must not exceed 50 characters';
+        if (!nameRegex.test(value)) return 'Last name should only contain letters';
         return '';
       case 'email':
         if (!value.trim()) return 'Email is required';
-        if (!emailRegex.test(value)) return 'Please enter a valid email address';
+        if (!emailRegex.test(value)) return 'Please enter a valid email address (e.g., student@example.com)';
+        if (value.length > 100) return 'Email must not exceed 100 characters';
         return '';
       case 'password':
         if (!value) return 'Password is required';
         if (value.length < 6) return 'Password must be at least 6 characters';
+        if (value.length > 50) return 'Password must not exceed 50 characters';
+        if (!/[A-Za-z]/.test(value)) return 'Password must contain at least one letter';
+        if (!/[0-9]/.test(value)) return 'Password must contain at least one number';
         return '';
       case 'phone':
         if (!value.trim()) return 'Phone number is required';
         if (!phoneRegex.test(value)) return 'Only digits, spaces, +, -, () allowed';
-        if (value.replace(/\D/g, '').length < 10) return 'Phone must have at least 10 digits';
+        const digits = value.replace(/\D/g, '');
+        if (digits.length < 10) return 'Phone must have at least 10 digits';
+        if (digits.length > 15) return 'Phone must not exceed 15 digits';
         return '';
       case 'dateOfBirth':
         if (!value) return 'Date of birth is required';
-        const age = Math.floor((new Date() - new Date(value)) / 31557600000);
-        if (age < 3 || age > 25) return 'Age must be between 3 and 25 years';
+        const dob = new Date(value);
+        const today = new Date();
+        if (dob > today) return 'Date of birth cannot be in the future';
+        const age = Math.floor((today - dob) / 31557600000);
+        if (age < 3) return 'Student must be at least 3 years old';
+        if (age > 25) return 'Student age must not exceed 25 years';
         return '';
       case 'gender':
         if (!value) return 'Gender is required';
+        if (!['male', 'female', 'other'].includes(value.toLowerCase())) return 'Please select a valid gender';
         return '';
       case 'rollNumber':
         if (!value.trim()) return 'Roll number is required';
+        if (value.trim().length < 1) return 'Roll number must be at least 1 character';
+        if (value.trim().length > 20) return 'Roll number must not exceed 20 characters';
         return '';
       case 'classId':
         if (!value) return 'Class is required';
         return '';
       case 'section':
-        if (!value) return 'Section is required';
+        if (!value.trim()) return 'Section is required';
+        if (value.trim().length > 10) return 'Section must not exceed 10 characters';
+        return '';
+      case 'bloodGroup':
+        if (value && !['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].includes(value)) {
+          return 'Please select a valid blood group';
+        }
         return '';
       default:
         return '';
@@ -262,6 +286,8 @@ export default function StudentManagement() {
 
   const validateForm = () => {
     const errors = {};
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const phoneRegex = /^[\d\s\+\-\(\)]+$/;
     
     // Basic student info validation
     const firstNameError = validateField('firstName', formData.firstName);
@@ -293,18 +319,67 @@ export default function StudentManagement() {
     
     const sectionError = validateField('section', formData.section);
     if (sectionError) errors.section = sectionError;
+
+    // Validate blood group if provided
+    const bloodGroupError = validateField('bloodGroup', formData.bloodGroup);
+    if (bloodGroupError) errors.bloodGroup = bloodGroupError;
     
     // Validate parent emails if provided
-    if (formData.father.email && !emailRegex.test(formData.father.email)) {
-      errors['father.email'] = 'Invalid email format for father';
-    }
-    if (formData.mother.email && !emailRegex.test(formData.mother.email)) {
-      errors['mother.email'] = 'Invalid email format for mother';
+    if (formData.father.email) {
+      if (!emailRegex.test(formData.father.email)) {
+        errors['father.email'] = 'Invalid email format for father';
+      }
+      if (formData.father.email.toLowerCase() === formData.email.toLowerCase()) {
+        errors['father.email'] = 'Father\'s email must be different from student email';
+      }
     }
     
-    // Validate emergency contact phone if provided
-    if (formData.emergencyContact.phone && formData.emergencyContact.phone.replace(/\D/g, '').length < 10) {
-      errors['emergencyContact.phone'] = 'Emergency contact must have at least 10 digits';
+    if (formData.mother.email) {
+      if (!emailRegex.test(formData.mother.email)) {
+        errors['mother.email'] = 'Invalid email format for mother';
+      }
+      if (formData.mother.email.toLowerCase() === formData.email.toLowerCase()) {
+        errors['mother.email'] = 'Mother\'s email must be different from student email';
+      }
+      if (formData.father.email && formData.mother.email.toLowerCase() === formData.father.email.toLowerCase()) {
+        errors['mother.email'] = 'Mother\'s email must be different from father\'s email';
+      }
+    }
+    
+    // Validate parent phone numbers if provided
+    if (formData.father.phone) {
+      if (!phoneRegex.test(formData.father.phone)) {
+        errors['father.phone'] = 'Invalid phone format for father';
+      }
+      const fatherDigits = formData.father.phone.replace(/\D/g, '');
+      if (fatherDigits.length < 10) {
+        errors['father.phone'] = 'Father\'s phone must have at least 10 digits';
+      }
+    }
+    
+    if (formData.mother.phone) {
+      if (!phoneRegex.test(formData.mother.phone)) {
+        errors['mother.phone'] = 'Invalid phone format for mother';
+      }
+      const motherDigits = formData.mother.phone.replace(/\D/g, '');
+      if (motherDigits.length < 10) {
+        errors['mother.phone'] = 'Mother\'s phone must have at least 10 digits';
+      }
+    }
+    
+    // Validate emergency contact if provided
+    if (formData.emergencyContact.phone) {
+      if (!phoneRegex.test(formData.emergencyContact.phone)) {
+        errors['emergencyContact.phone'] = 'Invalid emergency contact phone format';
+      }
+      const emergencyDigits = formData.emergencyContact.phone.replace(/\D/g, '');
+      if (emergencyDigits.length < 10) {
+        errors['emergencyContact.phone'] = 'Emergency contact must have at least 10 digits';
+      }
+    }
+    
+    if (formData.emergencyContact.name && formData.emergencyContact.name.trim().length < 2) {
+      errors['emergencyContact.name'] = 'Emergency contact name must be at least 2 characters';
     }
 
     return errors;
@@ -778,28 +853,95 @@ export default function StudentManagement() {
 
               {/* Modal Body - Enhanced */}
               <form onSubmit={handleSubmit} className="p-8 space-y-8 bg-gradient-to-br from-purple-50 via-white to-pink-50">
+                {/* Required Fields Notice */}
+                <div className="bg-purple-50 border-2 border-purple-200 rounded-xl p-4">
+                  <p className="text-sm font-bold text-purple-800 mb-2">📋 Required Fields:</p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs text-purple-700">
+                    <div>✓ Student Name (2-50 chars, letters only)</div>
+                    <div>✓ Email (valid format, MUST BE UNIQUE)</div>
+                    <div>✓ Password (6+ chars, letters + numbers)</div>
+                    <div>✓ Phone (10+ digits)</div>
+                    <div>✓ Date of Birth (5-18 years)</div>
+                    <div>✓ Gender (Male/Female/Other)</div>
+                    <div>✓ Roll Number (per class/section/year)</div>
+                    <div>✓ Class & Section</div>
+                    <div>✓ Blood Group</div>
+                    <div>✓ Father&apos;s Name & Email (UNIQUE)</div>
+                    <div>✓ Mother&apos;s Name & Email (UNIQUE)</div>
+                    <div>✓ Emergency Contact</div>
+                  </div>
+                  <p className="text-xs text-purple-600 mt-2">
+                    💡 <span className="text-red-500">*</span> indicates required fields | Emails must be unique (student, father, mother)
+                  </p>
+                </div>
+
+                {/* Email Uniqueness Warning */}
+                <div className="bg-red-50 border-2 border-red-300 rounded-xl p-4">
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">🚫</span>
+                    <div>
+                      <p className="text-sm font-bold text-red-800 mb-1">Email Uniqueness Policy:</p>
+                      <p className="text-xs text-red-700">
+                        <strong>NO duplicate emails allowed:</strong> Student email, Father&apos;s email, and Mother&apos;s email must ALL be unique across the entire system. 
+                        Each email can only be used once.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Important Information about Duplicate Names */}
                 <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border-2 border-indigo-300 rounded-2xl p-6 shadow-lg">
                   <div className="flex items-start gap-4">
                     <div className="text-4xl">💡</div>
                     <div className="flex-1">
-                      <h4 className="text-xl font-black text-indigo-900 mb-3">Multiple Students with Same Name? No Problem!</h4>
-                      <div className="space-y-2 text-sm text-gray-700">
-                        <p className="flex items-start gap-2">
-                          <span className="text-green-600 font-bold">✓</span>
-                          <span><strong>Same student names allowed:</strong> You can add multiple &quot;Rahul Kumar&quot; or &quot;Priya Sharma&quot; students</span>
-                        </p>
-                        <p className="flex items-start gap-2">
-                          <span className="text-green-600 font-bold">✓</span>
-                          <span><strong>Same parent names allowed:</strong> Multiple &quot;Rajesh Kumar&quot; fathers or &quot;Sunita Sharma&quot; mothers</span>
-                        </p>
-                        <p className="flex items-start gap-2">
-                          <span className="text-green-600 font-bold">✓</span>
-                          <span><strong>Siblings allowed:</strong> Same class, section, and parents (different emails required)</span>
-                        </p>
-                        
-                        {/* Real-world Examples */}
-                        <div className="mt-5 pt-4 border-t-2 border-indigo-200">
+                      <h4 className="text-xl font-black text-indigo-900 mb-3">What Can and Cannot Be Duplicate</h4>
+                      
+                      <div className="mb-3">
+                        <p className="text-sm font-bold text-green-800 mb-2">✅ CAN be duplicate:</p>
+                        <div className="space-y-1 text-sm text-gray-700">
+                          <p className="flex items-start gap-2">
+                            <span className="text-green-600 font-bold">✓</span>
+                            <span><strong>Student names:</strong> Multiple &quot;Rahul Kumar&quot; or &quot;Priya Sharma&quot; allowed</span>
+                          </p>
+                          <p className="flex items-start gap-2">
+                            <span className="text-green-600 font-bold">✓</span>
+                            <span><strong>Parent names:</strong> Multiple &quot;Rajesh Kumar&quot; fathers or &quot;Sunita Sharma&quot; mothers allowed</span>
+                          </p>
+                          <p className="flex items-start gap-2">
+                            <span className="text-green-600 font-bold">✓</span>
+                            <span><strong>Phone numbers:</strong> Can be same (e.g., siblings with same parent contact)</span>
+                          </p>
+                        </div>
+                      </div>
+
+                      <div>
+                        <p className="text-sm font-bold text-red-800 mb-2">❌ CANNOT be duplicate:</p>
+                        <div className="space-y-1 text-sm text-gray-700">
+                          <p className="flex items-start gap-2">
+                            <span className="text-red-600 font-bold">✗</span>
+                            <span><strong>Student Email:</strong> MUST BE UNIQUE - No two students can have same email</span>
+                          </p>
+                          <p className="flex items-start gap-2">
+                            <span className="text-red-600 font-bold">✗</span>
+                            <span><strong>Father&apos;s Email:</strong> MUST BE UNIQUE - Each father needs different email</span>
+                          </p>
+                          <p className="flex items-start gap-2">
+                            <span className="text-red-600 font-bold">✗</span>
+                            <span><strong>Mother&apos;s Email:</strong> MUST BE UNIQUE - Each mother needs different email</span>
+                          </p>
+                          <p className="flex items-start gap-2">
+                            <span className="text-red-600 font-bold">✗</span>
+                            <span><strong>Roll Number:</strong> Unique per class/section/academic year</span>
+                          </p>
+                          <p className="flex items-start gap-2">
+                            <span className="text-red-600 font-bold">✗</span>
+                            <span><strong>Admission Number:</strong> Auto-generated, globally unique</span>
+                          </p>
+                        </div>
+                      </div>
+                      
+                      {/* Real-world Examples */}
+                      <div className="mt-5 pt-4 border-t-2 border-indigo-200">
                           <p className="font-bold text-indigo-900 mb-3">📝 Real-World Examples:</p>
                           <div className="bg-white rounded-xl p-4 mb-3 border-2 border-green-200">
                             <p className="font-bold text-green-700 mb-2">Example 1: Same Student Names ✅</p>
@@ -825,26 +967,25 @@ export default function StudentManagement() {
                               <p>• Family B: Father <strong>&quot;Rajesh Kumar&quot;</strong> (rajesh.family2@email.com)</p>
                               <p className="text-purple-600 font-semibold mt-2">✓ Different parent accounts created!</p>
                             </div>
-                          </div>
                         </div>
+                      </div>
 
-                        <div className="mt-4 pt-4 border-t-2 border-indigo-200">
-                          <p className="font-bold text-indigo-900 mb-2">🔐 What must be unique:</p>
-                          <ul className="space-y-1 ml-6">
-                            <li className="flex items-center gap-2">
-                              <span className="text-purple-600">🔹</span>
-                              <span><strong>Admission Number</strong> - Auto-generated, globally unique</span>
-                            </li>
-                            <li className="flex items-center gap-2">
-                              <span className="text-purple-600">🔹</span>
-                              <span><strong>Email addresses</strong> - Student, father, mother each need unique emails</span>
-                            </li>
-                            <li className="flex items-center gap-2">
-                              <span className="text-purple-600">🔹</span>
-                              <span><strong>Roll number</strong> - Unique within same class/section/year only</span>
-                            </li>
-                          </ul>
-                        </div>
+                      <div className="mt-4 pt-4 border-t-2 border-indigo-200">
+                        <p className="font-bold text-indigo-900 mb-2">🔐 What must be unique:</p>
+                        <ul className="space-y-1 ml-6">
+                          <li className="flex items-center gap-2">
+                            <span className="text-purple-600">🔹</span>
+                            <span><strong>Admission Number</strong> - Auto-generated, globally unique</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <span className="text-purple-600">🔹</span>
+                            <span><strong>Email addresses</strong> - Student, father, mother each need unique emails</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <span className="text-purple-600">🔹</span>
+                            <span><strong>Roll number</strong> - Unique within same class/section/year only</span>
+                          </li>
+                        </ul>
                       </div>
                     </div>
                   </div>
@@ -1759,6 +1900,40 @@ export default function StudentManagement() {
 
               {/* Modal Body - Reuse same form structure as Add */}
               <form onSubmit={handleEdit} className="p-8 space-y-8 bg-gradient-to-br from-blue-50 via-white to-purple-50">
+                {/* Required Fields Notice */}
+                <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
+                  <p className="text-sm font-bold text-blue-800 mb-2">📋 Required Fields:</p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs text-blue-700">
+                    <div>✓ Student Name (2-50 chars, letters only)</div>
+                    <div>✓ Email (valid format, MUST BE UNIQUE)</div>
+                    <div>✓ Phone (10+ digits)</div>
+                    <div>✓ Date of Birth (5-18 years)</div>
+                    <div>✓ Gender (Male/Female/Other)</div>
+                    <div>✓ Roll Number (per class/section/year)</div>
+                    <div>✓ Class & Section</div>
+                    <div>✓ Blood Group</div>
+                    <div>✓ Father&apos;s Name & Email (UNIQUE)</div>
+                    <div>✓ Mother&apos;s Name & Email (UNIQUE)</div>
+                    <div>✓ Emergency Contact</div>
+                  </div>
+                  <p className="text-xs text-blue-600 mt-2">
+                    💡 <span className="text-red-500">*</span> indicates required fields | Password not required for update
+                  </p>
+                </div>
+
+                {/* Email Uniqueness Warning */}
+                <div className="bg-red-50 border-2 border-red-300 rounded-xl p-4">
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">🚫</span>
+                    <div>
+                      <p className="text-sm font-bold text-red-800 mb-1">Email Uniqueness Policy:</p>
+                      <p className="text-xs text-red-700">
+                        <strong>NO duplicate emails allowed:</strong> Student email, Father&apos;s email, and Mother&apos;s email must ALL be unique across the entire system.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 {error && (
                   <div className="bg-gradient-to-r from-red-50 to-rose-50 border-2 border-red-500 rounded-2xl p-5 shadow-xl flex items-center gap-4">
                     <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-rose-600 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">

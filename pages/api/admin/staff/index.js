@@ -152,12 +152,93 @@ export default async function handler(req, res) {
         });
       }
 
-      // Validate password length
+      // Validate password
       if (password.length < 6) {
         return res.status(400).json({
           success: false,
           message: 'Password must be at least 6 characters long'
         });
+      }
+      if (!/[A-Za-z]/.test(password)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Password must contain at least one letter'
+        });
+      }
+      if (!/[0-9]/.test(password)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Password must contain at least one number'
+        });
+      }
+
+      // Validate phone number
+      const phoneRegex = /^[0-9+\-\s()]{10,}$/;
+      if (!phoneRegex.test(phone)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Please provide a valid phone number (minimum 10 digits)'
+        });
+      }
+
+      // Validate date of birth and age
+      if (dateOfBirth) {
+        const dob = new Date(dateOfBirth);
+        const today = new Date();
+        const age = Math.floor((today - dob) / 31557600000);
+        if (age < 18) {
+          return res.status(400).json({
+            success: false,
+            message: 'Staff must be at least 18 years old'
+          });
+        }
+        if (age > 70) {
+          return res.status(400).json({
+            success: false,
+            message: 'Staff age must not exceed 70 years'
+          });
+        }
+      }
+
+      // Validate date of joining
+      if (dateOfJoining && new Date(dateOfJoining) > new Date()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Date of joining cannot be in the future'
+        });
+      }
+
+      // Validate basic salary
+      if (salary.basicSalary <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Basic salary must be greater than 0'
+        });
+      }
+      if (salary.basicSalary > 10000000) {
+        return res.status(400).json({
+          success: false,
+          message: 'Basic salary seems unrealistic (max 1 crore)'
+        });
+      }
+
+      // Validate personal email if provided
+      if (personalEmail && !emailRegex.test(personalEmail)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Please provide a valid personal email address'
+        });
+      }
+
+      // Validate IFSC code if provided
+      if (bankDetails?.ifscCode) {
+        const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+        if (!ifscRegex.test(bankDetails.ifscCode.toUpperCase())) {
+          return res.status(400).json({
+            success: false,
+            message: 'Invalid IFSC code format (e.g., SBIN0001234)'
+          });
+        }
       }
 
       // IMPORTANT: We only check unique identifiers, NOT names
@@ -228,8 +309,8 @@ export default async function handler(req, res) {
 
       return res.status(201).json({
         success: true,
-        message: 'Staff member created successfully',
-        data: populatedStaff,
+        message: `Staff member created successfully! Employee ID: ${employeeId}`,
+        staff: populatedStaff,
         credentials: credentials
       });
     }

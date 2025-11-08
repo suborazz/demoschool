@@ -3,7 +3,7 @@ import Staff from '../../../models/Staff';
 import Class from '../../../models/Class';
 import Student from '../../../models/Student';
 import Grade from '../../../models/Grade';
-import AttendanceStaff from '../../../models/AttendanceStaff';
+import AttendanceStudent from '../../../models/AttendanceStudent';
 import User from '../../../models/User';
 import { verify } from 'jsonwebtoken';
 
@@ -66,19 +66,46 @@ export default async function handler(req, res) {
       status: { $ne: 'published' }
     });
 
-    // Get staff attendance this month
+    // Get student attendance marking statistics for this month
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
 
-    const attendanceThisMonth = await AttendanceStaff.find({
-      staff: staff._id,
-      date: { $gte: startOfMonth }
-    });
+    // Count unique class-date combinations where this staff marked attendance
+    const attendanceMarkedThisMonth = await AttendanceStudent.aggregate([
+      {
+        $match: {
+          markedBy: userId,
+          date: { $gte: startOfMonth }
+        }
+      },
+      {
+        $group: {
+          _id: { class: '$class', date: '$date' }
+        }
+      },
+      {
+        $count: 'total'
+      }
+    ]);
 
-    const presentDays = attendanceThisMonth.filter(a => a.status === 'present').length;
-    const totalDays = attendanceThisMonth.length;
-    const attendanceRate = totalDays > 0 ? ((presentDays / totalDays) * 100).toFixed(0) : 0;
+    const classesWithAttendance = attendanceMarkedThisMonth[0]?.total || 0;
+    
+    // Calculate total working days this month (excluding weekends)
+    const today = new Date();
+    const daysInMonth = today.getDate();
+    let workingDays = 0;
+    for (let i = 1; i <= daysInMonth; i++) {
+      const day = new Date(today.getFullYear(), today.getMonth(), i);
+      const dayOfWeek = day.getDay();
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Not Sunday (0) or Saturday (6)
+        workingDays++;
+      }
+    }
+    
+    // Expected attendance marks = number of classes * working days
+    const expectedMarks = allClassIds.length * workingDays;
+    const attendanceRate = expectedMarks > 0 ? ((classesWithAttendance / expectedMarks) * 100).toFixed(0) : 0;
 
     // Get today's schedule (from all assigned classes)
     const todayScheduleFromStaff = staff.classes
@@ -104,6 +131,31 @@ export default async function handler(req, res) {
     });
     const todaySchedule = Array.from(todayScheduleMap.values());
 
+    // Calculate today's attendance marked
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+
+    const attendanceMarkedToday = await AttendanceStudent.aggregate([
+      {
+        $match: {
+          markedBy: userId,
+          date: { $gte: startOfToday, $lte: endOfToday }
+        }
+      },
+      {
+        $group: {
+          _id: '$class'
+        }
+      },
+      {
+        $count: 'total'
+      }
+    ]);
+
+    const classesMarkedToday = attendanceMarkedToday[0]?.total || 0;
+
     res.json({
       success: true,
       data: {
@@ -122,7 +174,7 @@ export default async function handler(req, res) {
         todaySchedule,
         summary: {
           classesToday: todaySchedule.length,
-          attendanceMarked: 0, // Can be calculated based on today's attendance records
+          attendanceMarked: classesMarkedToday,
           gradesPending: pendingGrades,
           messages: 0 // Placeholder for future messaging feature
         }

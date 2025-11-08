@@ -27,33 +27,64 @@ export default async function handler(req, res) {
     }
 
     const userId = decoded.id || decoded.userId;
-    const adminUser = await User.findById(userId);
+    const user = await User.findById(userId);
     
-    if (!adminUser || !['admin', 'staff'].includes(adminUser.role)) {
-      return res.status(403).json({ success: false, message: 'Access denied. Admin or Staff only.' });
+    // Only staff/teachers can mark attendance, NOT admin
+    if (!user || user.role !== 'staff') {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Access denied. Only teachers/staff can mark attendance. Admins have view-only access.' 
+      });
     }
 
     const { classId, date, attendanceRecords } = req.body;
 
-    // Validation
+    // Comprehensive Validation
+    const validationErrors = [];
+
     if (!classId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Class is required'
-      });
+      validationErrors.push('Class is required');
     }
 
     if (!date) {
-      return res.status(400).json({
-        success: false,
-        message: 'Date is required'
-      });
+      validationErrors.push('Date is required');
     }
 
     if (!attendanceRecords || !Array.isArray(attendanceRecords) || attendanceRecords.length === 0) {
+      validationErrors.push('Attendance records are required');
+    }
+
+    // Validate date is not in future
+    if (date) {
+      const today = new Date();
+      today.setHours(23, 59, 59, 999);
+      const selectedDate = new Date(date);
+      
+      if (selectedDate > today) {
+        validationErrors.push('Cannot mark attendance for future dates');
+      }
+    }
+
+    // Validate each attendance record
+    const validStatuses = ['present', 'absent', 'late', 'half-day', 'on-leave'];
+    if (attendanceRecords && Array.isArray(attendanceRecords)) {
+      attendanceRecords.forEach((record, index) => {
+        if (!record.studentId) {
+          validationErrors.push(`Record ${index + 1}: Student ID is required`);
+        }
+        if (!record.status) {
+          validationErrors.push(`Record ${index + 1}: Status is required`);
+        }
+        if (record.status && !validStatuses.includes(record.status)) {
+          validationErrors.push(`Record ${index + 1}: Invalid status. Must be one of: ${validStatuses.join(', ')}`);
+        }
+      });
+    }
+
+    if (validationErrors.length > 0) {
       return res.status(400).json({
         success: false,
-        message: 'Attendance records are required'
+        message: validationErrors.join('. ')
       });
     }
 

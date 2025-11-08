@@ -22,6 +22,7 @@ export default function Reports() {
   const [selectedReport, setSelectedReport] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
   const [detailedView, setDetailedView] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   useEffect(() => {
     if (token) {
@@ -30,7 +31,46 @@ export default function Reports() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, dateRange]);
 
+  const validateDateRange = () => {
+    const errors = {};
+
+    // If custom date range is selected
+    if (startDate || endDate) {
+      if (!startDate) {
+        errors.startDate = 'Start date is required when using custom date range';
+      }
+      if (!endDate) {
+        errors.endDate = 'End date is required when using custom date range';
+      }
+      
+      if (startDate && endDate) {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        
+        if (start > end) {
+          errors.endDate = 'End date must be after start date';
+        }
+        
+        // Limit to 1 year range
+        const daysDiff = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+        if (daysDiff > 365) {
+          errors.endDate = 'Date range cannot exceed 1 year (365 days)';
+        }
+      }
+    }
+
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const fetchReports = async () => {
+    // Validate dates before fetching
+    if (!validateDateRange()) {
+      toast.error('Please fix the date range errors');
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       const params = new URLSearchParams({ dateRange });
@@ -41,9 +81,10 @@ export default function Reports() {
         headers: { Authorization: `Bearer ${token}` }
       });
       setReportData(response.data.data);
+      toast.success('Reports loaded successfully');
     } catch (error) {
       console.error('Error fetching reports:', error);
-      toast.error('Failed to load reports');
+      toast.error(error.response?.data?.message || 'Failed to load reports');
     } finally {
       setLoading(false);
     }
@@ -208,6 +249,22 @@ export default function Reports() {
                 </p>
               </div>
             </div>
+
+              {/* Quick Info */}
+              <div className="bg-gradient-to-r from-orange-50 to-red-50 border-2 border-orange-200 rounded-xl p-4 mt-4">
+                <div className="flex items-start gap-3">
+                  <FaChartLine className="text-orange-600 text-2xl flex-shrink-0 mt-1" />
+                  <div>
+                    <p className="text-sm font-bold text-orange-800 mb-2">📊 Reports Overview</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-orange-700">
+                      <div>• <strong>4 Main Reports:</strong> Students, Attendance, Fees, Staff</div>
+                      <div>• <strong>Date Filters:</strong> Quick select or custom range (max 1 year)</div>
+                      <div>• <strong>Export Options:</strong> CSV format available</div>
+                      <div>• <strong>Click Cards:</strong> View detailed breakdowns</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
               
               {/* Action Buttons */}
               <div className="flex flex-wrap gap-3">
@@ -251,6 +308,18 @@ export default function Reports() {
                   </button>
                 </div>
                 
+                {/* Validation Info */}
+                <div className="bg-orange-50 border-2 border-orange-200 rounded-xl p-4 mb-4">
+                  <p className="text-sm font-bold text-orange-800 mb-2">📋 Date Range Options:</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-orange-700">
+                    <div>✓ <strong>Quick Select:</strong> Use predefined ranges (Today, Week, Month, Year)</div>
+                    <div>✓ <strong>Custom Range:</strong> Both start & end dates required (max 365 days)</div>
+                  </div>
+                  <p className="text-xs text-orange-600 mt-2">
+                    💡 Leave custom dates blank to use Quick Select
+                  </p>
+                </div>
+                
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   {/* Quick Date Range */}
                   <div className="md:col-span-4">
@@ -263,6 +332,7 @@ export default function Reports() {
                             setDateRange(range);
                             setStartDate('');
                             setEndDate('');
+                            setFieldErrors({});
                             fetchReports();
                           }}
                           className={`px-4 py-2 rounded-lg font-bold transition-all text-sm ${
@@ -279,23 +349,57 @@ export default function Reports() {
                   
                   {/* Custom Date Range */}
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Start Date</label>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">
+                      Start Date {(startDate || endDate) && <span className="text-red-500">*</span>}
+                    </label>
                     <input
                       type="date"
                       value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:ring-2 focus:ring-orange-200 focus:outline-none"
+                      onChange={(e) => {
+                        setStartDate(e.target.value);
+                        if (fieldErrors.startDate) {
+                          setFieldErrors(prev => ({...prev, startDate: ''}));
+                        }
+                      }}
+                      className={`w-full px-4 py-2 border-2 rounded-xl focus:ring-2 focus:outline-none transition-all ${
+                        fieldErrors.startDate
+                          ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
+                          : 'border-gray-200 focus:border-orange-500 focus:ring-orange-200'
+                      }`}
                     />
+                    {fieldErrors.startDate && (
+                      <p className="text-red-500 text-xs mt-1 font-semibold flex items-center gap-1">
+                        <span>⚠️</span> {fieldErrors.startDate}
+                      </p>
+                    )}
+                    <p className="text-xs text-gray-500 mt-1">Optional: Leave blank for quick select</p>
                   </div>
                   
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-bold text-gray-700 mb-2">End Date</label>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">
+                      End Date {(startDate || endDate) && <span className="text-red-500">*</span>}
+                    </label>
                     <input
                       type="date"
                       value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:ring-2 focus:ring-orange-200 focus:outline-none"
+                      onChange={(e) => {
+                        setEndDate(e.target.value);
+                        if (fieldErrors.endDate) {
+                          setFieldErrors(prev => ({...prev, endDate: ''}));
+                        }
+                      }}
+                      className={`w-full px-4 py-2 border-2 rounded-xl focus:ring-2 focus:outline-none transition-all ${
+                        fieldErrors.endDate
+                          ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
+                          : 'border-gray-200 focus:border-orange-500 focus:ring-orange-200'
+                      }`}
                     />
+                    {fieldErrors.endDate && (
+                      <p className="text-red-500 text-xs mt-1 font-semibold flex items-center gap-1">
+                        <span>⚠️</span> {fieldErrors.endDate}
+                      </p>
+                    )}
+                    <p className="text-xs text-gray-500 mt-1">Max 365 days range</p>
                   </div>
                   
                   <div className="md:col-span-4 flex justify-end gap-3">
@@ -304,6 +408,7 @@ export default function Reports() {
                         setStartDate('');
                         setEndDate('');
                         setDateRange('month');
+                        setFieldErrors({});
                         fetchReports();
                       }}
                       className="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg font-bold hover:bg-gray-200 transition-all"
@@ -312,9 +417,20 @@ export default function Reports() {
                     </button>
                     <button
                       onClick={fetchReports}
-                      className="px-6 py-2 bg-gradient-to-r from-orange-600 to-red-600 text-white rounded-lg font-bold hover:shadow-lg transition-all"
+                      disabled={loading}
+                      className="px-6 py-2 bg-gradient-to-r from-orange-600 to-red-600 text-white rounded-lg font-bold hover:shadow-lg transition-all disabled:opacity-50 flex items-center gap-2"
                     >
-                      Apply Filters
+                      {loading ? (
+                        <>
+                          <FaSpinner className="animate-spin" />
+                          <span>Loading...</span>
+                        </>
+                      ) : (
+                        <>
+                          <FaSearch />
+                          <span>Apply Filters</span>
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>

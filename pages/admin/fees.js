@@ -77,26 +77,53 @@ export default function FeeManagement() {
     }
   }, [token, fetchFees, fetchStudents]);
 
-  const validateField = (name, value) => {
+  const validateField = (name, value, contextData = null) => {
     switch (name) {
       case 'studentId':
         if (!value) return 'Student is required';
         return '';
+      
       case 'feeType':
         if (!value) return 'Fee type is required';
         return '';
+      
       case 'totalAmount':
-        if (!value || value <= 0) return 'Amount must be greater than 0';
+        if (!value) return 'Amount is required';
+        if (value <= 0) return 'Amount must be greater than 0';
+        if (value > 10000000) return 'Amount seems unusually high (max ₹1 Crore)';
         return '';
+      
       case 'dueDate':
         if (!value) return 'Due date is required';
+        // Optional: Warn if due date is too far in future
+        const dueDate = new Date(value);
+        const oneYearFromNow = new Date();
+        oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+        if (dueDate > oneYearFromNow) return 'Due date is more than 1 year in future. Please verify.';
         return '';
+      
       case 'paymentAmount':
-        if (!value || value <= 0) return 'Amount must be greater than 0';
+        if (!value) return 'Amount is required';
+        if (value <= 0) return 'Amount must be greater than 0';
+        if (contextData?.maxAmount && parseFloat(value) > contextData.maxAmount) {
+          return `Cannot exceed pending amount (₹${contextData.maxAmount})`;
+        }
         return '';
+      
       case 'paymentMethod':
         if (!value) return 'Payment method is required';
         return '';
+      
+      case 'transactionId':
+        // Only required for digital payments
+        if (contextData?.paymentMethod && 
+            ['card', 'upi', 'netbanking', 'razorpay'].includes(contextData.paymentMethod) && 
+            !value) {
+          return 'Transaction ID required for digital payments';
+        }
+        if (value && value.length < 4) return 'Transaction ID must be at least 4 characters';
+        return '';
+      
       default:
         return '';
     }
@@ -124,7 +151,13 @@ export default function FeeManagement() {
       setFieldErrors(prev => ({ ...prev, [name]: '' }));
     }
 
-    const error = validateField(name, value);
+    // Pass context for validation (e.g., max amount for payment, payment method for transaction ID)
+    const contextData = {
+      maxAmount: selectedFee?.amountPending,
+      paymentMethod: name === 'transactionId' ? paymentData.paymentMethod : value
+    };
+
+    const error = validateField(name, value, contextData);
     if (error) {
       setFieldErrors(prev => ({ ...prev, [name]: error }));
     }
@@ -143,11 +176,28 @@ export default function FeeManagement() {
 
   const validatePaymentForm = () => {
     const errors = [];
-    if (!paymentData.paymentAmount || paymentData.paymentAmount <= 0) errors.push('Payment amount must be greater than 0');
-    if (!paymentData.paymentMethod) errors.push('Payment method is required');
-    if (parseFloat(paymentData.paymentAmount) > selectedFee?.amountPending) {
+    
+    if (!paymentData.paymentAmount) {
+      errors.push('Payment amount is required');
+    } else if (paymentData.paymentAmount <= 0) {
+      errors.push('Payment amount must be greater than 0');
+    } else if (parseFloat(paymentData.paymentAmount) > selectedFee?.amountPending) {
       errors.push(`Payment amount cannot exceed pending amount (₹${selectedFee?.amountPending})`);
     }
+    
+    if (!paymentData.paymentMethod) {
+      errors.push('Payment method is required');
+    }
+    
+    // Transaction ID required for digital payments
+    if (['card', 'upi', 'netbanking', 'razorpay'].includes(paymentData.paymentMethod) && !paymentData.transactionId) {
+      errors.push('Transaction ID is required for digital payment methods');
+    }
+    
+    if (paymentData.transactionId && paymentData.transactionId.length < 4) {
+      errors.push('Transaction ID must be at least 4 characters');
+    }
+    
     return errors;
   };
 
@@ -517,6 +567,20 @@ export default function FeeManagement() {
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Required Fields Notice */}
+                <div className="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-4">
+                  <p className="text-sm font-bold text-yellow-800 mb-2">📋 Required Fields:</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-yellow-700">
+                    <div>✓ Student (select from dropdown)</div>
+                    <div>✓ Fee Type (Tuition, Exam, etc.)</div>
+                    <div>✓ Total Amount (must be greater than 0)</div>
+                    <div>✓ Due Date (can be future date)</div>
+                  </div>
+                  <p className="text-xs text-yellow-600 mt-2">
+                    💡 <span className="text-red-500">*</span> indicates required fields
+                  </p>
+                </div>
+
                 {error && (
                   <div className="bg-red-50 border-2 border-red-500 rounded-xl p-4 flex items-center gap-3">
                     <span className="text-xl">⚠️</span>
@@ -599,8 +663,9 @@ export default function FeeManagement() {
                           ? 'border-red-500 focus:border-red-500 focus:ring-red-200' 
                           : 'border-gray-200 focus:border-yellow-500 focus:ring-yellow-200'
                       }`}
-                      placeholder="₹"
+                      placeholder="₹ Enter amount"
                       min="1"
+                      max="10000000"
                       required
                     />
                     {fieldErrors.totalAmount && (
@@ -608,6 +673,7 @@ export default function FeeManagement() {
                         <span>⚠️</span> {fieldErrors.totalAmount}
                       </p>
                     )}
+                    <p className="text-xs text-gray-500 mt-1">Enter amount in rupees (max ₹1 Crore)</p>
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">
@@ -618,6 +684,7 @@ export default function FeeManagement() {
                       name="dueDate"
                       value={formData.dueDate}
                       onChange={handleInputChange}
+                      min={new Date().toISOString().split('T')[0]}
                       className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:outline-none ${
                         fieldErrors.dueDate 
                           ? 'border-red-500 focus:border-red-500 focus:ring-red-200' 
@@ -630,6 +697,7 @@ export default function FeeManagement() {
                         <span>⚠️</span> {fieldErrors.dueDate}
                       </p>
                     )}
+                    <p className="text-xs text-gray-500 mt-1">Can be future date (max 1 year ahead)</p>
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">
@@ -641,7 +709,9 @@ export default function FeeManagement() {
                       value={formData.academicYear}
                       onChange={handleInputChange}
                       className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-yellow-500 focus:ring-4 focus:ring-yellow-200 focus:outline-none"
+                      placeholder="e.g., 2024"
                     />
+                    <p className="text-xs text-gray-500 mt-1">Default: Current year</p>
                   </div>
                   <div className="md:col-span-2">
                     <label className="block text-sm font-bold text-gray-700 mb-2">
@@ -716,6 +786,18 @@ export default function FeeManagement() {
               </div>
 
               <form onSubmit={handlePayment} className="space-y-4">
+                {/* Required Fields Notice */}
+                <div className="bg-green-50 border-2 border-green-200 rounded-xl p-4">
+                  <p className="text-sm font-bold text-green-800 mb-2">📋 Required Fields:</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-green-700">
+                    <div>✓ Payment Amount (1 to ₹{selectedFee.amountPending})</div>
+                    <div>✓ Payment Method (Cash, Card, UPI, etc.)</div>
+                  </div>
+                  <p className="text-xs text-green-600 mt-2">
+                    💡 <span className="text-red-500">*</span> indicates required fields
+                  </p>
+                </div>
+
                 {error && (
                   <div className="bg-red-50 border-2 border-red-500 rounded-xl p-4 flex items-center gap-3">
                     <span className="text-xl">⚠️</span>
@@ -737,7 +819,7 @@ export default function FeeManagement() {
                         ? 'border-red-500 focus:border-red-500 focus:ring-red-200' 
                         : 'border-gray-200 focus:border-green-500 focus:ring-green-200'
                     }`}
-                    placeholder="₹"
+                    placeholder="₹ Enter payment amount"
                     min="1"
                     max={selectedFee.amountPending}
                     required
@@ -747,6 +829,9 @@ export default function FeeManagement() {
                       <span>⚠️</span> {fieldErrors.paymentAmount}
                     </p>
                   )}
+                  <p className="text-xs text-gray-500 mt-1">
+                    Max: ₹{selectedFee.amountPending} (pending amount)
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-2">
@@ -769,16 +854,31 @@ export default function FeeManagement() {
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-2">
-                    Transaction ID
+                    Transaction ID {['card', 'upi', 'netbanking', 'razorpay'].includes(paymentData.paymentMethod) && <span className="text-red-500">*</span>}
                   </label>
                   <input
                     type="text"
                     name="transactionId"
                     value={paymentData.transactionId}
                     onChange={handlePaymentInputChange}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-200 focus:outline-none"
-                    placeholder="Optional"
+                    className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:outline-none ${
+                      fieldErrors.transactionId 
+                        ? 'border-red-500 focus:border-red-500 focus:ring-red-200' 
+                        : 'border-gray-200 focus:border-green-500 focus:ring-green-200'
+                    }`}
+                    placeholder={['card', 'upi', 'netbanking', 'razorpay'].includes(paymentData.paymentMethod) ? 'Required for digital payments' : 'Optional for cash'}
+                    required={['card', 'upi', 'netbanking', 'razorpay'].includes(paymentData.paymentMethod)}
                   />
+                  {fieldErrors.transactionId && (
+                    <p className="text-red-500 text-xs mt-1 font-semibold flex items-center gap-1">
+                      <span>⚠️</span> {fieldErrors.transactionId}
+                    </p>
+                  )}
+                  <p className="text-xs text-gray-500 mt-1">
+                    {['card', 'upi', 'netbanking', 'razorpay'].includes(paymentData.paymentMethod) 
+                      ? 'Required for digital payment methods' 
+                      : 'Optional for cash payments'}
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-2">

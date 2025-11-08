@@ -16,6 +16,7 @@ export default function SubjectsManagement() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingSubject, setEditingSubject] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
   
   const [formData, setFormData] = useState({
     name: '',
@@ -47,18 +48,104 @@ export default function SubjectsManagement() {
     }
   }, [token, fetchSubjects]);
 
+  const validateField = (name, value) => {
+    switch (name) {
+      case 'name':
+        if (!value.trim()) return 'Subject name is required';
+        if (value.trim().length < 2) return 'Subject name must be at least 2 characters';
+        if (value.trim().length > 100) return 'Subject name cannot exceed 100 characters';
+        return '';
+      
+      case 'code':
+        if (!value.trim()) return 'Subject code is required';
+        if (value.trim().length < 2) return 'Code must be at least 2 characters';
+        if (value.trim().length > 20) return 'Code cannot exceed 20 characters';
+        if (!/^[A-Z0-9-_]+$/i.test(value.trim())) return 'Code can only contain letters, numbers, hyphens, and underscores';
+        return '';
+      
+      case 'totalMarks':
+        if (!value) return 'Total marks is required';
+        if (value <= 0) return 'Total marks must be greater than 0';
+        if (value > 1000) return 'Total marks cannot exceed 1000';
+        return '';
+      
+      case 'passingMarks':
+        if (!value && value !== 0) return 'Passing marks is required';
+        if (value < 0) return 'Passing marks cannot be negative';
+        if (parseInt(value) > parseInt(formData.totalMarks)) return 'Passing marks cannot exceed total marks';
+        return '';
+      
+      case 'category':
+        if (!value) return 'Category is required';
+        return '';
+      
+      default:
+        return '';
+    }
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    
+    // Clear field error when user types
+    if (fieldErrors[name]) {
+      setFieldErrors(prev => ({ ...prev, [name]: '' }));
+    }
+
+    // Validate field in real-time
+    const error = validateField(name, value);
+    if (error) {
+      setFieldErrors(prev => ({ ...prev, [name]: error }));
+    }
+
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const validateForm = () => {
     const errors = [];
-    if (!formData.name.trim()) errors.push('Subject name is required');
-    if (!formData.code.trim()) errors.push('Subject code is required');
-    if (formData.totalMarks <= 0) errors.push('Total marks must be greater than 0');
-    if (formData.passingMarks < 0) errors.push('Passing marks cannot be negative');
-    if (formData.passingMarks > formData.totalMarks) errors.push('Passing marks cannot exceed total marks');
+    const newFieldErrors = {};
+    
+    if (!formData.name.trim()) {
+      errors.push('Subject name is required');
+      newFieldErrors.name = 'Subject name is required';
+    } else if (formData.name.trim().length < 2) {
+      errors.push('Subject name must be at least 2 characters');
+      newFieldErrors.name = 'Must be at least 2 characters';
+    }
+    
+    if (!formData.code.trim()) {
+      errors.push('Subject code is required');
+      newFieldErrors.code = 'Subject code is required';
+    } else if (formData.code.trim().length < 2) {
+      errors.push('Code must be at least 2 characters');
+      newFieldErrors.code = 'Must be at least 2 characters';
+    } else if (!/^[A-Z0-9-_]+$/i.test(formData.code.trim())) {
+      errors.push('Code can only contain letters, numbers, hyphens, and underscores');
+      newFieldErrors.code = 'Only letters, numbers, -, _';
+    }
+    
+    if (!formData.totalMarks || formData.totalMarks <= 0) {
+      errors.push('Total marks must be greater than 0');
+      newFieldErrors.totalMarks = 'Must be > 0';
+    } else if (formData.totalMarks > 1000) {
+      errors.push('Total marks cannot exceed 1000');
+      newFieldErrors.totalMarks = 'Max 1000';
+    }
+    
+    if (formData.passingMarks < 0) {
+      errors.push('Passing marks cannot be negative');
+      newFieldErrors.passingMarks = 'Cannot be negative';
+    } else if (parseInt(formData.passingMarks) > parseInt(formData.totalMarks)) {
+      errors.push('Passing marks cannot exceed total marks');
+      newFieldErrors.passingMarks = 'Cannot exceed total marks';
+    }
+    
+    if (!formData.category) {
+      errors.push('Category is required');
+      newFieldErrors.category = 'Category is required';
+    }
+    
+    setFieldErrors(newFieldErrors);
     return errors;
   };
 
@@ -157,6 +244,7 @@ export default function SubjectsManagement() {
       totalMarks: 100,
       passingMarks: 33
     });
+    setFieldErrors({});
   };
 
   const categories = ['Core', 'Elective', 'Language', 'Science', 'Arts', 'Sports', 'Co-curricular'];
@@ -320,6 +408,21 @@ export default function SubjectsManagement() {
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Required Fields Notice */}
+                <div className="bg-indigo-50 border-2 border-indigo-200 rounded-xl p-4">
+                  <p className="text-sm font-bold text-indigo-800 mb-2">📋 Required Fields:</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-indigo-700">
+                    <div>✓ Subject Name (2-100 characters)</div>
+                    <div>✓ Subject Code (2-20 alphanumeric)</div>
+                    <div>✓ Category (Core, Elective, etc.)</div>
+                    <div>✓ Total Marks (1-1000)</div>
+                    <div>✓ Passing Marks (≤ Total Marks)</div>
+                  </div>
+                  <p className="text-xs text-indigo-600 mt-2">
+                    💡 <span className="text-red-500">*</span> indicates required fields
+                  </p>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">
@@ -330,10 +433,19 @@ export default function SubjectsManagement() {
                       name="name"
                       value={formData.name}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-200 focus:outline-none"
+                      className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:outline-none transition-all ${
+                        fieldErrors.name 
+                          ? 'border-red-500 focus:border-red-500 focus:ring-red-200' 
+                          : 'border-gray-200 focus:border-indigo-500 focus:ring-indigo-200'
+                      }`}
                       placeholder="e.g., Mathematics"
                       required
                     />
+                    {fieldErrors.name && (
+                      <p className="text-red-500 text-xs mt-1 font-semibold flex items-center gap-1">
+                        <span>⚠️</span> {fieldErrors.name}
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -345,10 +457,20 @@ export default function SubjectsManagement() {
                       name="code"
                       value={formData.code}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-200 focus:outline-none uppercase"
+                      className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:outline-none uppercase transition-all ${
+                        fieldErrors.code 
+                          ? 'border-red-500 focus:border-red-500 focus:ring-red-200' 
+                          : 'border-gray-200 focus:border-indigo-500 focus:ring-indigo-200'
+                      }`}
                       placeholder="e.g., MATH101"
                       required
                     />
+                    {fieldErrors.code && (
+                      <p className="text-red-500 text-xs mt-1 font-semibold flex items-center gap-1">
+                        <span>⚠️</span> {fieldErrors.code}
+                      </p>
+                    )}
+                    <p className="text-xs text-gray-500 mt-1">Letters, numbers, -, _ only</p>
                   </div>
                 </div>
 
@@ -360,8 +482,9 @@ export default function SubjectsManagement() {
                     onChange={handleInputChange}
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-200 focus:outline-none"
                     rows="3"
-                    placeholder="Brief description of the subject"
+                    placeholder="Brief description of the subject (optional)"
                   />
+                  <p className="text-xs text-gray-500 mt-1">Optional - Add subject details</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -373,13 +496,22 @@ export default function SubjectsManagement() {
                       name="category"
                       value={formData.category}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-200 focus:outline-none"
+                      className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:outline-none transition-all ${
+                        fieldErrors.category 
+                          ? 'border-red-500 focus:border-red-500 focus:ring-red-200' 
+                          : 'border-gray-200 focus:border-indigo-500 focus:ring-indigo-200'
+                      }`}
                       required
                     >
                       {categories.map(cat => (
                         <option key={cat} value={cat}>{cat}</option>
                       ))}
                     </select>
+                    {fieldErrors.category && (
+                      <p className="text-red-500 text-xs mt-1 font-semibold flex items-center gap-1">
+                        <span>⚠️</span> {fieldErrors.category}
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -391,10 +523,22 @@ export default function SubjectsManagement() {
                       name="totalMarks"
                       value={formData.totalMarks}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-200 focus:outline-none"
+                      className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:outline-none transition-all ${
+                        fieldErrors.totalMarks 
+                          ? 'border-red-500 focus:border-red-500 focus:ring-red-200' 
+                          : 'border-gray-200 focus:border-indigo-500 focus:ring-indigo-200'
+                      }`}
+                      placeholder="100"
                       min="1"
+                      max="1000"
                       required
                     />
+                    {fieldErrors.totalMarks && (
+                      <p className="text-red-500 text-xs mt-1 font-semibold flex items-center gap-1">
+                        <span>⚠️</span> {fieldErrors.totalMarks}
+                      </p>
+                    )}
+                    <p className="text-xs text-gray-500 mt-1">Max marks: 1000</p>
                   </div>
 
                   <div>
@@ -406,10 +550,22 @@ export default function SubjectsManagement() {
                       name="passingMarks"
                       value={formData.passingMarks}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-200 focus:outline-none"
+                      className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:outline-none transition-all ${
+                        fieldErrors.passingMarks 
+                          ? 'border-red-500 focus:border-red-500 focus:ring-red-200' 
+                          : 'border-gray-200 focus:border-indigo-500 focus:ring-indigo-200'
+                      }`}
+                      placeholder="33"
                       min="0"
+                      max={formData.totalMarks}
                       required
                     />
+                    {fieldErrors.passingMarks && (
+                      <p className="text-red-500 text-xs mt-1 font-semibold flex items-center gap-1">
+                        <span>⚠️</span> {fieldErrors.passingMarks}
+                      </p>
+                    )}
+                    <p className="text-xs text-gray-500 mt-1">Must be ≤ total marks</p>
                   </div>
                 </div>
 
@@ -463,6 +619,21 @@ export default function SubjectsManagement() {
               </div>
 
               <form onSubmit={handleEdit} className="space-y-4">
+                {/* Required Fields Notice */}
+                <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
+                  <p className="text-sm font-bold text-blue-800 mb-2">📋 Required Fields:</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-blue-700">
+                    <div>✓ Subject Name (2-100 characters)</div>
+                    <div>✓ Subject Code (2-20 alphanumeric)</div>
+                    <div>✓ Category (Core, Elective, etc.)</div>
+                    <div>✓ Total Marks (1-1000)</div>
+                    <div>✓ Passing Marks (≤ Total Marks)</div>
+                  </div>
+                  <p className="text-xs text-blue-600 mt-2">
+                    💡 <span className="text-red-500">*</span> indicates required fields
+                  </p>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">
@@ -473,9 +644,19 @@ export default function SubjectsManagement() {
                       name="name"
                       value={formData.name}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-200 focus:outline-none"
+                      className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:outline-none transition-all ${
+                        fieldErrors.name 
+                          ? 'border-red-500 focus:border-red-500 focus:ring-red-200' 
+                          : 'border-gray-200 focus:border-blue-500 focus:ring-blue-200'
+                      }`}
+                      placeholder="e.g., Mathematics"
                       required
                     />
+                    {fieldErrors.name && (
+                      <p className="text-red-500 text-xs mt-1 font-semibold flex items-center gap-1">
+                        <span>⚠️</span> {fieldErrors.name}
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -487,9 +668,20 @@ export default function SubjectsManagement() {
                       name="code"
                       value={formData.code}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-200 focus:outline-none uppercase"
+                      className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:outline-none uppercase transition-all ${
+                        fieldErrors.code 
+                          ? 'border-red-500 focus:border-red-500 focus:ring-red-200' 
+                          : 'border-gray-200 focus:border-blue-500 focus:ring-blue-200'
+                      }`}
+                      placeholder="e.g., MATH101"
                       required
                     />
+                    {fieldErrors.code && (
+                      <p className="text-red-500 text-xs mt-1 font-semibold flex items-center gap-1">
+                        <span>⚠️</span> {fieldErrors.code}
+                      </p>
+                    )}
+                    <p className="text-xs text-gray-500 mt-1">Letters, numbers, -, _ only</p>
                   </div>
                 </div>
 
@@ -501,7 +693,9 @@ export default function SubjectsManagement() {
                     onChange={handleInputChange}
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-200 focus:outline-none"
                     rows="3"
+                    placeholder="Brief description of the subject (optional)"
                   />
+                  <p className="text-xs text-gray-500 mt-1">Optional - Add subject details</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -513,13 +707,22 @@ export default function SubjectsManagement() {
                       name="category"
                       value={formData.category}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-200 focus:outline-none"
+                      className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:outline-none transition-all ${
+                        fieldErrors.category 
+                          ? 'border-red-500 focus:border-red-500 focus:ring-red-200' 
+                          : 'border-gray-200 focus:border-blue-500 focus:ring-blue-200'
+                      }`}
                       required
                     >
                       {categories.map(cat => (
                         <option key={cat} value={cat}>{cat}</option>
                       ))}
                     </select>
+                    {fieldErrors.category && (
+                      <p className="text-red-500 text-xs mt-1 font-semibold flex items-center gap-1">
+                        <span>⚠️</span> {fieldErrors.category}
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -531,10 +734,22 @@ export default function SubjectsManagement() {
                       name="totalMarks"
                       value={formData.totalMarks}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-200 focus:outline-none"
+                      className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:outline-none transition-all ${
+                        fieldErrors.totalMarks 
+                          ? 'border-red-500 focus:border-red-500 focus:ring-red-200' 
+                          : 'border-gray-200 focus:border-blue-500 focus:ring-blue-200'
+                      }`}
+                      placeholder="100"
                       min="1"
+                      max="1000"
                       required
                     />
+                    {fieldErrors.totalMarks && (
+                      <p className="text-red-500 text-xs mt-1 font-semibold flex items-center gap-1">
+                        <span>⚠️</span> {fieldErrors.totalMarks}
+                      </p>
+                    )}
+                    <p className="text-xs text-gray-500 mt-1">Max marks: 1000</p>
                   </div>
 
                   <div>
@@ -546,10 +761,22 @@ export default function SubjectsManagement() {
                       name="passingMarks"
                       value={formData.passingMarks}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-200 focus:outline-none"
+                      className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-4 focus:outline-none transition-all ${
+                        fieldErrors.passingMarks 
+                          ? 'border-red-500 focus:border-red-500 focus:ring-red-200' 
+                          : 'border-gray-200 focus:border-blue-500 focus:ring-blue-200'
+                      }`}
+                      placeholder="33"
                       min="0"
+                      max={formData.totalMarks}
                       required
                     />
+                    {fieldErrors.passingMarks && (
+                      <p className="text-red-500 text-xs mt-1 font-semibold flex items-center gap-1">
+                        <span>⚠️</span> {fieldErrors.passingMarks}
+                      </p>
+                    )}
+                    <p className="text-xs text-gray-500 mt-1">Must be ≤ total marks</p>
                   </div>
                 </div>
 

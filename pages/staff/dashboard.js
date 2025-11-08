@@ -5,18 +5,19 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import DashboardLayout from '../../components/DashboardLayout';
+import UpcomingEvents from '../../components/UpcomingEvents';
 import { 
   FaClipboardCheck, FaChalkboard, FaBook, FaCalendar,
   FaUserCheck, FaChartLine, FaUpload, FaClock, FaBell,
   FaTrophy, FaUsers, FaStar, FaCheckCircle, FaEdit,
   FaFileAlt, FaGraduationCap, FaClipboardList, FaArrowRight,
-  FaExclamationCircle, FaComments, FaAward, FaSpinner
+  FaExclamationCircle, FaComments, FaAward, FaSpinner, FaSyncAlt
 } from 'react-icons/fa';
 
 export default function StaffDashboard() {
   const router = useRouter();
   const { user, token } = useAuth();
-  const [currentTime] = useState(new Date());
+  const [currentTime, setCurrentTime] = useState(new Date());
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState(null);
 
@@ -24,21 +25,35 @@ export default function StaffDashboard() {
     if (token) {
       fetchDashboardData();
     }
+    // Update time every minute
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000);
+    return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (showToast = false) => {
     try {
-      setLoading(true);
+      if (showToast) {
+        toast.loading('Refreshing dashboard...', { id: 'refresh' });
+      } else {
+        setLoading(true);
+      }
       const response = await axios.get('/api/staff/dashboard', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setDashboardData(response.data.data);
+      if (showToast) {
+        toast.success('Dashboard refreshed!', { id: 'refresh' });
+      }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
-      toast.error(error.response?.data?.message || 'Failed to load dashboard data');
+      toast.error(error.response?.data?.message || 'Failed to load dashboard data', { id: 'refresh' });
     } finally {
-      setLoading(false);
+      if (!showToast) {
+        setLoading(false);
+      }
     }
   };
 
@@ -126,6 +141,13 @@ export default function StaffDashboard() {
               </p>
             </div>
             <div className="flex gap-3 sm:gap-4 mt-0">
+              <button
+                onClick={() => fetchDashboardData(true)}
+                className="px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all hover:scale-105 text-sm sm:text-base"
+              >
+                <FaSyncAlt className="inline mr-1 sm:mr-2" />
+                Refresh
+              </button>
               <div className="px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl font-bold shadow-lg text-sm sm:text-base">
                 <FaClock className="inline mr-1 sm:mr-2" />
                 {currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
@@ -134,19 +156,36 @@ export default function StaffDashboard() {
           </div>
 
           {/* Staff Info Card */}
-          <div className="bg-gradient-to-r from-purple-600 via-pink-600 to-purple-600 rounded-2xl shadow-2xl p-6 text-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm opacity-90 mb-1">Employee ID</p>
-                <p className="text-2xl font-black">{dashboardData?.staff.employeeId}</p>
-              </div>
-              <div>
-                <p className="text-sm opacity-90 mb-1">Department</p>
-                <p className="text-xl font-bold">{dashboardData?.staff.department}</p>
-              </div>
-              <div>
-                <p className="text-sm opacity-90 mb-1">Designation</p>
-                <p className="text-xl font-bold">{dashboardData?.staff.designation}</p>
+          <div className="bg-gradient-to-r from-purple-600 via-pink-600 to-purple-600 rounded-2xl shadow-2xl p-6 text-white relative overflow-hidden">
+            <div className="absolute inset-0 opacity-10">
+              <div className="absolute w-64 h-64 bg-white rounded-full -top-32 -right-32"></div>
+              <div className="absolute w-64 h-64 bg-white rounded-full -bottom-32 -left-32"></div>
+            </div>
+            <div className="relative">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
+                    <FaGraduationCap className="text-3xl" />
+                  </div>
+                  <div>
+                    <p className="text-sm opacity-90">{new Date().toLocaleDateString('en-IN', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p>
+                    <p className="text-2xl font-black">{dashboardData?.staff.name}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-6">
+                  <div>
+                    <p className="text-xs opacity-90 mb-1">Employee ID</p>
+                    <p className="text-lg font-black">{dashboardData?.staff.employeeId}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs opacity-90 mb-1">Department</p>
+                    <p className="text-lg font-black">{dashboardData?.staff.department}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs opacity-90 mb-1">Designation</p>
+                    <p className="text-lg font-black">{dashboardData?.staff.designation}</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -310,6 +349,9 @@ export default function StaffDashboard() {
                   </p>
                 </div>
               </div>
+
+              {/* Upcoming Events */}
+              <UpcomingEvents limit={5} />
             </div>
           </div>
 
